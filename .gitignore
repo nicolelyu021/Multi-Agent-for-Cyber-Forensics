@@ -1,0 +1,22 @@
+# Data
+data/raw/
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+
+# Environment
+.env
+
+# DB
+*.db
+
+# OS
+.DS_Store
