@@ -1,22 +1,33 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { FilterPanel } from "./FilterPanel";
 import { GraphView } from "./GraphView";
 import { ForensicPanel } from "./ForensicPanel";
 import { TimeSlider } from "./TimeSlider";
 import { AlertBanner } from "./AlertBanner";
+import { PersonaSwitcher } from "./PersonaSwitcher";
+import { ExecutiveSummary } from "./ExecutiveSummary";
+import { StreamControl } from "./StreamControl";
+import { SlackNotificationLog } from "./SlackNotificationLog";
 import { ComplianceScorecard } from "./ComplianceScorecard";
+import { CounterfactualToggle } from "./CounterfactualToggle";
+import { TamperSimulation } from "./TamperSimulation";
 import { useGraphData } from "@/hooks/useGraphData";
 import { useForensicTrace } from "@/hooks/useForensicTrace";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useTimeSlider } from "@/hooks/useTimeSlider";
 import { listTraces } from "@/lib/api";
 import type { TraceSummary } from "@/lib/api";
-import type { ThreatCategory, GraphEdge, GraphNode } from "@/lib/types";
-import { DEPARTMENT_COLORS, THREAT_COLORS } from "@/lib/constants";
-import { Shield, FileText, GitBranch, ArrowRight, User, Mail, AlertTriangle, Activity } from "lucide-react";
+import type { ThreatCategory, GraphEdge, GraphNode, Persona } from "@/lib/types";
+import { DEPARTMENT_COLORS } from "@/lib/constants";
+import { getPersonExplanation } from "@/lib/api";
+import {
+  Shield, FileText, GitBranch, ArrowRight, User, Mail,
+  AlertTriangle, Activity, Network, BarChart3, X, Brain, Bell,
+  Shuffle, Fingerprint,
+} from "lucide-react";
 
-type PanelView = "forensic" | "compliance" | "traces" | "person" | "edge" | "empty";
+type PanelView = "forensic" | "traces" | "person" | "edge" | "notifications" | "compliance" | "counterfactual" | "tamper" | "empty";
 
 export function Dashboard() {
   const [department, setDepartment] = useState<string>("");
@@ -25,6 +36,12 @@ export function Dashboard() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string } | null>(null);
   const [availableTraces, setAvailableTraces] = useState<TraceSummary[]>([]);
+  const [investigationNodeIds, setInvestigationNodeIds] = useState<Set<string>>(new Set());
+  const [analysisSummary, setAnalysisSummary] = useState<{ confidence: number; threat: string; people: string[] } | null>(null);
+  const [showBanner, setShowBanner] = useState(false);
+  const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
+  const [suspiciousOnly, setSuspiciousOnly] = useState(false);
+  const [persona, setPersona] = useState<Persona>("soc_analyst");
 
   const timeSlider = useTimeSlider("1999-06-01", "2002-06-01");
   const { nodes, edges, loading: graphLoading, refetch } = useGraphData({
@@ -32,9 +49,11 @@ export function Dashboard() {
     end_date: timeSlider.currentDate,
     department: department || undefined,
     threat_category: threats.length === 1 ? threats[0] : undefined,
+    include_scores: hasRunAnalysis,
   });
   const forensic = useForensicTrace();
-  const { alerts, connected, dismissAlert } = useWebSocket();
+  const { alerts, connected, dismissAlert, slackNotifications } = useWebSocket();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Load available traces on mount
   useEffect(() => {
@@ -80,11 +99,32 @@ export function Dashboard() {
   );
 
   const handleAnalysisComplete = useCallback(
-    (traceId: string | null) => {
+    (traceId: string | null, result?: any) => {
+      setHasRunAnalysis(true);
       refetch();
       refreshTraces();
       if (traceId) {
         loadTraceById(traceId);
+      }
+      // Extract investigation nodes from analysis results
+      if (result) {
+        const nodeIds = new Set<string>();
+        const anomEdges = result.anomalous_edges || [];
+        for (const e of anomEdges) {
+          if (e.source) nodeIds.add(e.source);
+          if (e.target) nodeIds.add(e.target);
+        }
+        const profiles = result.behavioral_profiles || [];
+        for (const p of profiles) {
+          if (p.person) nodeIds.add(p.person);
+        }
+        setInvestigationNodeIds(nodeIds);
+        setAnalysisSummary({
+          confidence: result.final_confidence || 0,
+          threat: result.threat_category || "unknown",
+          people: Array.from(nodeIds).map(id => id.split("@")[0].replace(/\./g, " ")).map(n => n.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")),
+        });
+        setShowBanner(true);
       }
     },
     [refetch, refreshTraces, loadTraceById]
@@ -103,73 +143,99 @@ export function Dashboard() {
       ) || null
     : null;
 
+  const displayNodes = useMemo(() => {
+    if (!hasRunAnalysis) return [];
+    if (!suspiciousOnly) return nodes;
+    // Filter to only nodes with suspicion_score > 0 and their connected edges
+    const suspiciousIds = new Set(nodes.filter(n => (n.suspicion_score || 0) > 15).map(n => n.id));
+    return nodes.filter(n => suspiciousIds.has(n.id));
+  }, [hasRunAnalysis, nodes, suspiciousOnly]);
+
+  const displayEdges = useMemo(() => {
+    if (!hasRunAnalysis) return [];
+    if (!suspiciousOnly) return edges;
+    const suspiciousIds = new Set(nodes.filter(n => (n.suspicion_score || 0) > 15).map(n => n.id));
+    return edges.filter(e => suspiciousIds.has(e.source) || suspiciousIds.has(e.target));
+  }, [hasRunAnalysis, edges, nodes, suspiciousOnly]);
+
+  const anomalousCount = displayEdges.filter((e) => e.anomaly_score > 2).length;
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "Escape") { setRightPanel("empty"); setSelectedNode(null); setSelectedEdge(null); }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); document.querySelector<HTMLInputElement>('[placeholder*="Search"]')?.focus(); }
+      if (e.key === "1" && !e.metaKey) setPersona("soc_analyst");
+      if (e.key === "2" && !e.metaKey) setPersona("compliance_officer");
+      if (e.key === "3" && !e.metaKey) setPersona("executive");
+      if (e.key === " " && !e.metaKey && !e.ctrlKey) { e.preventDefault(); timeSlider.isPlaying ? timeSlider.pause() : timeSlider.play(); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [timeSlider]);
+
+  // Icon sidebar items
+  const sidebarItems: { key: PanelView; icon: React.ReactNode; label: string }[] = [
+    { key: "forensic", icon: <Shield style={{ width: 16, height: 16 }} />, label: "Investigation" },
+    { key: "traces", icon: <GitBranch style={{ width: 16, height: 16 }} />, label: "Traces" },
+    { key: "compliance", icon: <FileText style={{ width: 16, height: 16 }} />, label: "Compliance" },
+    { key: "notifications", icon: <Bell style={{ width: 16, height: 16 }} />, label: "Notifications" },
+  ];
+
   return (
     <div className="dashboard-root">
       {/* ── Header ── */}
       <header className="dashboard-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Left: Logo + Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 6,
             background: "linear-gradient(135deg, #3b82f6, #06b6d4)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <Shield style={{ width: 18, height: 18, color: "white" }} />
+            <Shield style={{ width: 15, height: 15, color: "white" }} />
           </div>
-          <div>
-            <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.2 }}>
-              Enron Threat Analysis
-            </h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              Multi-Agent Forensic Traceability
-            </span>
-          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--text-primary)" }}>
+            Enron Threat Analysis
+          </span>
         </div>
 
+        {/* Center: Persona Switcher + Data Chips */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {availableTraces.length > 0 && (
-            <button
-              onClick={() => setRightPanel("traces")}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500,
-                background: rightPanel === "traces" ? "var(--bg-card)" : "transparent",
-                color: rightPanel === "traces" ? "var(--accent-blue)" : "var(--text-secondary)",
-                border: rightPanel === "traces" ? "1px solid var(--accent-blue)" : "1px solid transparent",
-                cursor: "pointer", transition: "all 0.15s",
-              }}
-            >
-              <GitBranch style={{ width: 14, height: 14 }} />
-              Traces ({availableTraces.length})
-            </button>
-          )}
+          <PersonaSwitcher persona={persona} onChange={setPersona} />
+          <div style={{ width: 1, height: 20, background: "var(--border)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <DataChip label="NODES" value={displayNodes.length} />
+          <DataChip label="EDGES" value={displayEdges.length} />
+          <DataChip
+            label="ANOMALOUS"
+            value={anomalousCount}
+            valueColor={anomalousCount > 0 ? "var(--accent-red)" : "var(--accent-green)"}
+          />
+          <DataChip
+            label="TRACES"
+            value={availableTraces.length}
+            valueColor={availableTraces.length > 0 ? "var(--accent-cyan)" : undefined}
+          />
+        </div>
 
-          <button
-            onClick={() => setRightPanel("compliance")}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500,
-              background: rightPanel === "compliance" ? "var(--bg-card)" : "transparent",
-              color: rightPanel === "compliance" ? "var(--accent-cyan)" : "var(--text-secondary)",
-              border: rightPanel === "compliance" ? "1px solid var(--accent-cyan)" : "1px solid transparent",
-              cursor: "pointer", transition: "all 0.15s",
-            }}
-          >
-            <FileText style={{ width: 14, height: 14 }} />
-            Compliance
-          </button>
-
+        {/* Right: Status */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "4px 10px", borderRadius: 100,
-            background: connected ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-            border: `1px solid ${connected ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "3px 8px", borderRadius: 100,
+            background: connected ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+            border: `1px solid ${connected ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
           }}>
             <div style={{
-              width: 6, height: 6, borderRadius: "50%",
+              width: 5, height: 5, borderRadius: "50%",
               background: connected ? "var(--accent-green)" : "var(--accent-red)",
               boxShadow: connected ? "0 0 6px rgba(34,197,94,0.5)" : "none",
             }} />
-            <span style={{ fontSize: 11, fontWeight: 500, color: connected ? "var(--accent-green)" : "var(--accent-red)" }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: connected ? "var(--accent-green)" : "var(--accent-red)" }}>
               {connected ? "Live" : "Offline"}
             </span>
           </div>
@@ -181,7 +247,7 @@ export function Dashboard() {
         <AlertBanner alerts={alerts} onDismiss={dismissAlert} onClick={handleAlertClick} />
       )}
 
-      {/* ── Three-Panel Body ── */}
+      {/* ── Body: Left Panel | Center | Right Panel | Icon Sidebar ── */}
       <div className="dashboard-body">
         <div className="panel-left">
           <FilterPanel
@@ -191,50 +257,132 @@ export function Dashboard() {
             onThreatsChange={setThreats}
             onRunAnalysis={handleAnalysisComplete}
           />
+          <div style={{ padding: "0 12px 12px" }}>
+            <StreamControl />
+          </div>
         </div>
 
         <div className="panel-center">
           <div className="graph-container">
             <GraphView
-              nodes={nodes}
-              edges={edges}
-              loading={graphLoading}
+              nodes={displayNodes}
+              edges={displayEdges}
+              loading={hasRunAnalysis && graphLoading}
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
+              investigationNodes={investigationNodeIds}
+              simplified={persona === "executive"}
             />
+
+            {/* Post-analysis summary banner */}
+            {showBanner && analysisSummary && (
+              <div style={{
+                position: "absolute", bottom: 12, left: 12, right: 12,
+                padding: "10px 14px", borderRadius: 8, zIndex: 20,
+                background: "rgba(15,19,24,0.92)", backdropFilter: "blur(8px)",
+                border: "1px solid rgba(59,130,246,0.3)",
+                display: "flex", alignItems: "center", gap: 12,
+              }}>
+                <AlertTriangle style={{
+                  width: 18, height: 18, flexShrink: 0,
+                  color: analysisSummary.confidence >= 0.7 ? "var(--accent-red)" : "var(--accent-amber)",
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>
+                    {analysisSummary.threat.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())} Detected
+                    <span style={{
+                      marginLeft: 8, fontSize: 10, fontWeight: 600,
+                      color: analysisSummary.confidence >= 0.7 ? "var(--accent-red)" : "var(--accent-amber)",
+                    }}>
+                      {(analysisSummary.confidence * 100).toFixed(0)}% confidence
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    {analysisSummary.people.slice(0, 3).join(", ")}
+                    {analysisSummary.people.length > 3 && ` +${analysisSummary.people.length - 3} more`}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setRightPanel("forensic"); }}
+                  style={{
+                    padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
+                    cursor: "pointer", background: "var(--accent-blue)", color: "white",
+                    border: "none", whiteSpace: "nowrap",
+                  }}
+                >
+                  Review Evidence
+                </button>
+                <button
+                  onClick={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
+                    cursor: "pointer", background: "var(--bg-card)", color: "var(--text-secondary)",
+                    border: "1px solid var(--border)", whiteSpace: "nowrap",
+                  }}
+                >
+                  Export PDF
+                </button>
+                <button
+                  onClick={() => setShowBanner(false)}
+                  style={{
+                    padding: 4, borderRadius: 4, cursor: "pointer",
+                    background: "transparent", border: "none", color: "var(--text-muted)",
+                  }}
+                >
+                  <X style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
+            )}
           </div>
-          <div className="time-slider-bar">
-            <TimeSlider
-              currentDate={timeSlider.currentDate}
-              startDate={timeSlider.startDate}
-              endDate={timeSlider.endDate}
-              isPlaying={timeSlider.isPlaying}
-              speed={timeSlider.speed}
-              onDateChange={timeSlider.setCurrentDate}
-              onPlay={timeSlider.play}
-              onPause={timeSlider.pause}
-              onSpeedChange={timeSlider.setSpeed}
-            />
-          </div>
+          {hasRunAnalysis && (
+            <div className="time-slider-bar">
+              <TimeSlider
+                currentDate={timeSlider.currentDate}
+                startDate={timeSlider.startDate}
+                endDate={timeSlider.endDate}
+                isPlaying={timeSlider.isPlaying}
+                speed={timeSlider.speed}
+                onDateChange={timeSlider.setCurrentDate}
+                onPlay={timeSlider.play}
+                onPause={timeSlider.pause}
+                onSpeedChange={timeSlider.setSpeed}
+                suspiciousOnly={suspiciousOnly}
+                onSuspiciousOnlyChange={setSuspiciousOnly}
+              />
+            </div>
+          )}
         </div>
 
         <div className="panel-right">
-          {rightPanel === "forensic" && (
-            <ForensicPanel
+          {rightPanel === "forensic" && persona === "executive" && forensic.records.length > 0 && (
+            <ExecutiveSummary
               records={forensic.records}
-              verification={forensic.verification}
-              counterfactual={forensic.counterfactual}
-              tamperSim={forensic.tamperSim}
-              loading={forensic.loading}
               traceId={forensic.activeTraceId}
-              onVerify={() => forensic.activeTraceId && forensic.loadVerification(forensic.activeTraceId)}
-              onCounterfactual={() => forensic.activeTraceId && forensic.loadCounterfactual(forensic.activeTraceId)}
-              onTamperSim={() => forensic.activeTraceId && forensic.runTamperSim(forensic.activeTraceId)}
+              confidence={analysisSummary?.confidence || 0}
+              threatCategory={analysisSummary?.threat || "unknown"}
+              people={analysisSummary?.people || []}
               onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
             />
           )}
-
-          {rightPanel === "compliance" && <ComplianceScorecard />}
+          {rightPanel === "forensic" && persona !== "executive" && (
+            <ForensicPanel
+              records={forensic.records}
+              verification={forensic.verification}
+              loading={forensic.loading}
+              traceId={forensic.activeTraceId}
+              onVerify={() => forensic.activeTraceId && forensic.loadVerification(forensic.activeTraceId)}
+              onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
+              onReviewSubmitted={() => {
+                if (forensic.activeTraceId) {
+                  forensic.loadTrace(forensic.activeTraceId);
+                  refreshTraces();
+                }
+              }}
+              personFilter={selectedNode}
+              edgeFilter={selectedEdge}
+              defaultTab={persona === "compliance_officer" ? "audit" : undefined}
+            />
+          )}
 
           {rightPanel === "traces" && (
             <TraceBrowser
@@ -257,6 +405,8 @@ export function Dashboard() {
                 setSelectedEdge({ source: src, target: tgt });
                 setRightPanel("edge");
               }}
+              persona={persona}
+              activeTraceId={forensic.activeTraceId}
             />
           )}
 
@@ -272,24 +422,132 @@ export function Dashboard() {
             />
           )}
 
+          {rightPanel === "notifications" && (
+            <SlackNotificationLog wsNotifications={slackNotifications} />
+          )}
+
+          {rightPanel === "compliance" && (
+            <ComplianceScorecard
+              records={forensic.records}
+              verification={forensic.verification}
+              traceId={forensic.activeTraceId}
+              onViewTrace={loadTraceById}
+            />
+          )}
+
+          {rightPanel === "counterfactual" && forensic.activeTraceId && (
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+              <h2 style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, color: "var(--text-primary)" }}>
+                <Shuffle style={{ width: 16, height: 16, color: "var(--accent-cyan)" }} />
+                What-If Analysis
+              </h2>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                What would the threat assessment look like if each agent was removed?
+                This demonstrates agent contribution attribution per NIST Govern 1.2.
+              </p>
+              {!forensic.counterfactual && (
+                <button
+                  onClick={() => forensic.activeTraceId && forensic.loadCounterfactual(forensic.activeTraceId)}
+                  style={{
+                    padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    background: "rgba(6,182,212,0.15)", color: "var(--accent-cyan)",
+                    border: "1px solid var(--accent-cyan)", cursor: "pointer", width: "100%",
+                  }}
+                >
+                  Run What-If Analysis
+                </button>
+              )}
+              <CounterfactualToggle data={forensic.counterfactual} />
+            </div>
+          )}
+
+          {rightPanel === "tamper" && forensic.activeTraceId && (
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+              <h2 style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, color: "var(--text-primary)" }}>
+                <Fingerprint style={{ width: 16, height: 16, color: "var(--accent-red)" }} />
+                Tamper Detection Demo
+              </h2>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                Demonstrates the SHA-256 hash chain integrity. A record is modified
+                and the chain verification detects the tampering.
+              </p>
+              <TamperSimulation
+                data={forensic.tamperSim}
+                onSimulate={() => forensic.activeTraceId && forensic.runTamperSim(forensic.activeTraceId)}
+              />
+            </div>
+          )}
+
           {rightPanel === "empty" && (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               height: "100%", flexDirection: "column", gap: 12, padding: 32,
             }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 16,
+                width: 48, height: 48, borderRadius: 12,
                 background: "var(--bg-card)", border: "1px solid var(--border)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Shield style={{ width: 24, height: 24, color: "var(--text-muted)", opacity: 0.4 }} />
+                <Network style={{ width: 22, height: 22, color: "var(--text-muted)", opacity: 0.4 }} />
               </div>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.5 }}>
-                Click a node or edge on the graph to inspect,<br />
+              <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.6 }}>
+                Click a node or edge to inspect,<br />
                 or run a threat analysis to generate<br />
-                multi-agent forensic traces
+                forensic traces
               </p>
             </div>
+          )}
+        </div>
+
+        {/* ── Icon Sidebar ── */}
+        <div className="icon-sidebar">
+          {sidebarItems.map(({ key, icon, label }) => (
+            <button
+              key={key}
+              className={`icon-sidebar-btn ${rightPanel === key ? "active" : ""}`}
+              onClick={() => setRightPanel(rightPanel === key ? "empty" : key)}
+              title={label}
+            >
+              {icon}
+            </button>
+          ))}
+          <div style={{ width: 24, height: 1, background: "var(--border)", margin: "4px 0" }} />
+          {forensic.activeTraceId && (
+            <>
+              <button
+                className={`icon-sidebar-btn ${rightPanel === "counterfactual" ? "active" : ""}`}
+                onClick={() => setRightPanel(rightPanel === "counterfactual" ? "empty" : "counterfactual")}
+                title="What-If Analysis"
+              >
+                <Shuffle style={{ width: 16, height: 16 }} />
+              </button>
+              <button
+                className={`icon-sidebar-btn ${rightPanel === "tamper" ? "active" : ""}`}
+                onClick={() => setRightPanel(rightPanel === "tamper" ? "empty" : "tamper")}
+                title="Tamper Demo"
+              >
+                <Fingerprint style={{ width: 16, height: 16 }} />
+              </button>
+              <div style={{ width: 24, height: 1, background: "var(--border)", margin: "4px 0" }} />
+            </>
+          )}
+          {selectedNode && (
+            <button
+              className={`icon-sidebar-btn ${rightPanel === "person" ? "active" : ""}`}
+              onClick={() => setRightPanel("person")}
+              title="Person Detail"
+            >
+              <User style={{ width: 16, height: 16 }} />
+            </button>
+          )}
+          {selectedEdge && (
+            <button
+              className={`icon-sidebar-btn ${rightPanel === "edge" ? "active" : ""}`}
+              onClick={() => setRightPanel("edge")}
+              title="Edge Detail"
+            >
+              <Mail style={{ width: 16, height: 16 }} />
+            </button>
           )}
         </div>
       </div>
@@ -297,9 +555,35 @@ export function Dashboard() {
   );
 }
 
+// ── Data Chip (header) ──
+function DataChip({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: number;
+  valueColor?: string;
+}) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 6,
+      padding: "2px 10px", borderRadius: 4,
+      background: "var(--bg-card)", border: "1px solid var(--border)",
+    }}>
+      <span style={{ fontSize: 9, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.04em" }}>
+        {label}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: valueColor || "var(--text-primary)" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 // ── Person Detail Panel ──
 function PersonDetail({
-  node, edges, nodes, traces, onSelectTrace, onViewEdge,
+  node, edges, nodes, traces, onSelectTrace, onViewEdge, persona, activeTraceId,
 }: {
   node: GraphNode;
   edges: GraphEdge[];
@@ -307,7 +591,22 @@ function PersonDetail({
   traces: TraceSummary[];
   onSelectTrace: (traceId: string) => void;
   onViewEdge: (source: string, target: string) => void;
+  persona?: Persona;
+  activeTraceId?: string | null;
 }) {
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
+
+  // Fetch explanation when persona or node changes
+  useEffect(() => {
+    if (!activeTraceId || !node.id) return;
+    setLoadingExplanation(true);
+    getPersonExplanation(activeTraceId, node.id, persona || "soc_analyst")
+      .then((res) => setExplanation(res.explanation))
+      .catch(() => setExplanation(null))
+      .finally(() => setLoadingExplanation(false));
+  }, [activeTraceId, node.id, persona]);
+
   const name = node.name || node.id.split("@")[0].replace(/\./g, " ");
   const displayName = name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   const deptColor = DEPARTMENT_COLORS[node.department] || DEPARTMENT_COLORS.Unknown;
@@ -363,6 +662,89 @@ function PersonDetail({
         <StatBox label="Emails" value={totalEmails} icon={<Mail style={{ width: 12, height: 12 }} />} />
         <StatBox label="Anomalous" value={anomalousEdges.length} color="var(--accent-red)" icon={<AlertTriangle style={{ width: 12, height: 12 }} />} />
       </div>
+
+      {/* Behavioral Trends */}
+      {anomalousEdges.length > 0 && (
+        <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em" }}>
+            Behavioral Indicators
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {anomalousEdges.length > 0 && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+              }}>
+                <AlertTriangle style={{ width: 12, height: 12, color: "var(--accent-red)", flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                  <b>{anomalousEdges.length}</b> anomalous communication {anomalousEdges.length === 1 ? "link" : "links"} detected
+                  {anomalousEdges[0] && (
+                    <> (highest score: {(anomalousEdges[0].anomaly_score || 0).toFixed(1)})</>
+                  )}
+                </span>
+              </div>
+            )}
+            {totalEmails > 50 && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
+              }}>
+                <BarChart3 style={{ width: 12, height: 12, color: "var(--accent-amber, #f59e0b)", flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  High email volume: <b>{totalEmails}</b> total emails across {connectedEdges.length} connections
+                </span>
+              </div>
+            )}
+            {connectedEdges.length > 0 && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+              }}>
+                <Activity style={{ width: 12, height: 12, color: "var(--accent-blue)", flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                  Top contact: <b>
+                    {(() => {
+                      const topEdge = connectedEdges[0];
+                      const otherId = topEdge.source === node.id ? topEdge.target : topEdge.source;
+                      return otherId.split("@")[0].replace(/\./g, " ").split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                    })()}
+                  </b> ({connectedEdges[0].volume || 0} emails)
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Explanation */}
+      {(explanation || loadingExplanation) && (
+        <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}>
+            <Brain style={{ width: 12, height: 12 }} />
+            AI Explanation
+            {persona && persona !== "soc_analyst" && (
+              <span style={{ fontSize: 9, fontWeight: 500, color: "var(--text-muted)", textTransform: "capitalize", letterSpacing: 0 }}>
+                ({persona.replace(/_/g, " ")})
+              </span>
+            )}
+          </h3>
+          {loadingExplanation ? (
+            <div className="skeleton" style={{ height: 60, borderRadius: 6 }} />
+          ) : explanation ? (
+            <div style={{
+              padding: 10, borderRadius: 6,
+              background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+            }}>
+              <p style={{
+                fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0,
+                whiteSpace: "pre-wrap",
+              }}>
+                {explanation.replace(/\*\*/g, "")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Connected people */}
       <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
