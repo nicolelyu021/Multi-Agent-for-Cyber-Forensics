@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { Play, Pause, FastForward } from "lucide-react";
+import { Play, Pause, FastForward, Target } from "lucide-react";
 
 interface TimeSliderProps {
   currentDate: string;
@@ -12,11 +12,14 @@ interface TimeSliderProps {
   onPlay: () => void;
   onPause: () => void;
   onSpeedChange: (speed: number) => void;
+  suspiciousOnly?: boolean;
+  onSuspiciousOnlyChange?: (val: boolean) => void;
 }
 
 export function TimeSlider({
   currentDate, startDate, endDate, isPlaying, speed,
   onDateChange, onPlay, onPause, onSpeedChange,
+  suspiciousOnly, onSuspiciousOnlyChange,
 }: TimeSliderProps) {
   const startMs = new Date(startDate).getTime();
   const endMs = new Date(endDate).getTime();
@@ -79,6 +82,25 @@ export function TimeSlider({
           <FastForward style={{ width: 10, height: 10 }} />
           {speed}x
         </button>
+
+        {/* Suspicious-only toggle */}
+        {onSuspiciousOnlyChange && (
+          <button
+            onClick={() => onSuspiciousOnlyChange(!suspiciousOnly)}
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "4px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+              background: suspiciousOnly ? "rgba(239,68,68,0.12)" : "var(--bg-card)",
+              color: suspiciousOnly ? "var(--accent-red)" : "var(--text-secondary)",
+              border: `1px solid ${suspiciousOnly ? "rgba(239,68,68,0.3)" : "var(--border)"}`,
+              cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
+            }}
+            title="Show only suspicious employees"
+          >
+            <Target style={{ width: 10, height: 10 }} />
+            Suspects
+          </button>
+        )}
 
         {/* Start label */}
         <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0, minWidth: 60 }}>
