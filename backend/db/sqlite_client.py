@@ -7,6 +7,9 @@ _DB_PATH = settings.forensic_db_path
 
 async def init_forensic_db():
     async with aiosqlite.connect(_DB_PATH) as db:
+        # Clear stale data from previous sessions for fresh demo state
+        await db.execute("DROP TABLE IF EXISTS forensic_records")
+        await db.execute("DROP TABLE IF EXISTS human_reviews")
         await db.execute("""
             CREATE TABLE IF NOT EXISTS forensic_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

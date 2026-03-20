@@ -80,7 +80,7 @@ def forensic_tool(tool_name: str, agent_id: str):
                 event_type="tool_call",
                 tool_name=tool_name,
                 tool_input=tool_input,
-                tool_output=tool_output[:10000],  # Truncate very large outputs
+                tool_output=tool_output[:50000],  # Preserve full email data for reports
                 tool_call_hash=call_hash,
             )
             await append_forensic_record(record)

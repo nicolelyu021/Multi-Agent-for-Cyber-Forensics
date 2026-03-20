@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     confidence_threshold: float = 0.7
     deliberation_divergence: float = 0.3  # triggers deliberation when agents disagree
 
+    # Slack integration (set to "mock" for demo mode)
+    slack_webhook_url: str = "mock"
+
     # Optional: Langfuse
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

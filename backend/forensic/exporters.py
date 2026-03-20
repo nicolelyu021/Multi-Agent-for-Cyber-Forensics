@@ -94,7 +94,7 @@ def _kv_table(rows, col_widths=(160, 320)):
 def _extract_emails_and_people(records: list[dict]) -> dict:
     """Extract specific emails, people, and communication pairs from forensic records."""
     people = set()
-    edges = []
+    edge_map: dict[tuple[str, str], dict] = {}
     emails_detail = []
 
     for rec in records:
@@ -105,9 +105,27 @@ def _extract_emails_and_people(records: list[dict]) -> dict:
                     for item in data:
                         if isinstance(item, dict):
                             if "source" in item and "target" in item:
+                                src = str(item["source"]).lower().strip()
+                                tgt = str(item["target"]).lower().strip()
                                 people.add(item["source"])
                                 people.add(item["target"])
-                                edges.append(item)
+                                # Deduplicate by normalized pair
+                                key = (min(src, tgt), max(src, tgt))
+                                if key in edge_map:
+                                    existing = edge_map[key]
+                                    # Sum volumes, keep max anomaly_score
+                                    for vol_key in ("volume", "total_volume"):
+                                        if vol_key in item and vol_key in existing:
+                                            try:
+                                                existing[vol_key] = int(existing[vol_key]) + int(item[vol_key])
+                                            except (ValueError, TypeError):
+                                                pass
+                                    cur_score = item.get("anomaly_score", 0)
+                                    ex_score = existing.get("anomaly_score", 0)
+                                    if isinstance(cur_score, (int, float)) and isinstance(ex_score, (int, float)):
+                                        existing["anomaly_score"] = max(cur_score, ex_score)
+                                else:
+                                    edge_map[key] = dict(item)
                             if "subject" in item and "body" in item:
                                 emails_detail.append(item)
                             elif "subject" in item:
@@ -129,6 +147,9 @@ def _extract_emails_and_people(records: list[dict]) -> dict:
         reasoning = rec.get("reasoning_summary") or ""
         found_emails = re.findall(r'[\w.]+@enron\.com', reasoning)
         people.update(found_emails)
+
+    # Sort edges by anomaly_score descending
+    edges = sorted(edge_map.values(), key=lambda e: e.get("anomaly_score", 0), reverse=True)
 
     return {
         "people": sorted(people)[:20],
@@ -155,8 +176,8 @@ def _extract_flagged_email_details(records: list[dict]) -> list[dict]:
                         entry = {
                             "message_id": item.get("message_id", ""),
                             "subject": item.get("subject", ""),
-                            "from": item.get("from", item.get("sender", "")),
-                            "to": item.get("to", item.get("receiver", "")),
+                            "from": item.get("from_addr", item.get("from", item.get("sender", ""))),
+                            "to": item.get("to_addr", item.get("to", item.get("receiver", ""))),
                             "date": item.get("date", ""),
                             "vader_compound": item.get("vader_compound"),
                             "keywords": item.get("keywords", {}),
@@ -221,6 +242,21 @@ def _parse_reasoning_into_sections(reasoning_text: str) -> list[dict]:
     return sections
 
 
+def _quote_box(text: str, styles) -> Table:
+    """Wrap text in a single-cell Table to create a reliable bordered box."""
+    para = Paragraph(text, styles["Quote"])
+    tbl = Table([[para]], colWidths=[440])
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#94a3b8")),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+    ]))
+    return tbl
+
+
 def _highlight_keywords_in_text(text: str) -> str:
     """Add bold/red formatting around suspicious keywords in text."""
     keywords = [
@@ -270,8 +306,7 @@ def generate_pdf_report(records: list[dict], trace_id: str) -> io.BytesIO:
     _add("Highlight", "Normal",   fontSize=9,  textColor=RED,   fontName="Helvetica-Bold")
     _add("EmailSubj", "Normal",   fontSize=9,  textColor=NAVY,  fontName="Helvetica-Bold", spaceBefore=6)
     _add("Quote",     "Normal",   fontSize=8,  textColor=colors.HexColor("#334155"), leading=12,
-         leftIndent=14, borderColor=colors.HexColor("#94a3b8"), borderWidth=1, borderPadding=6,
-         backColor=colors.HexColor("#f8fafc"))
+         leftIndent=4, rightIndent=4)
     _add("KeyFinding", "Normal",  fontSize=9, textColor=colors.HexColor("#991b1b"), leading=13,
          leftIndent=10, backColor=LIGHT_RED, borderPadding=6)
 
@@ -329,6 +364,14 @@ def generate_pdf_report(records: list[dict], trace_id: str) -> io.BytesIO:
             e.split("@")[0].replace(".", " ").title() for e in evidence["people"][:4]
         )
 
+        # Recommended action based on severity
+        if is_high:
+            action_text = "Immediate review recommended. Escalate to compliance team."
+        elif confidence and confidence >= 0.4:
+            action_text = "Further investigation warranted. Monitor communications closely."
+        else:
+            action_text = "Low risk detected. Continue standard monitoring procedures."
+
         story.append(Paragraph(
             f"The system analyzed emails between <b>{_safe(people_names)}</b> "
             f"and found <b>{severity} risk</b> of <b>{threat_cat}</b> activity. "
@@ -340,6 +383,7 @@ def generate_pdf_report(records: list[dict], trace_id: str) -> io.BytesIO:
         story.append(_kv_table([
             ("Threat type",          threat_cat),
             ("Confidence level",     f"{conf_pct} ({severity} risk)"),
+            ("Recommended action",   action_text),
             ("Suspicious email pairs", str(len(evidence["edges"]))),
             ("Emails flagged",       str(len(flagged_emails))),
             ("Agents involved",      str(len(set(r.get("agent_id") for r in records if r.get("agent_id"))))),
@@ -365,8 +409,23 @@ def generate_pdf_report(records: list[dict], trace_id: str) -> io.BytesIO:
     story += _heading("2. Suspicious Emails Found", styles)
 
     if flagged_emails:
+        # Key Finding callout — most concerning finding
+        all_kw_categories = set()
+        for fe in flagged_emails:
+            all_kw_categories.update(fe.get("keywords", {}).keys())
+        kw_summary = ", ".join(cat.replace("_", " ") for cat in all_kw_categories) if all_kw_categories else "behavioral anomalies"
+        high_risk_count = sum(1 for fe in flagged_emails if fe.get("keywords") and (fe.get("vader_compound") or 0) < -0.3)
+
+        finding_text = (
+            f"<b>{len(flagged_emails)} emails</b> were flagged for <b>{kw_summary}</b>."
+        )
+        if high_risk_count:
+            finding_text += f" Of these, <b>{high_risk_count}</b> show both threat keywords and negative tone, indicating heightened risk."
+
+        story.append(Paragraph(finding_text, styles["KeyFinding"]))
+        story.append(Spacer(1, 8))
+
         story.append(Paragraph(
-            f"The agents flagged <b>{len(flagged_emails)} emails</b> as suspicious. "
             f"Key details and the specific content that triggered each flag are shown below.",
             styles["Body"],
         ))
@@ -409,30 +468,38 @@ def generate_pdf_report(records: list[dict], trace_id: str) -> io.BytesIO:
                     styles["BodySmall"],
                 ))
 
-            # Sentiment
+            # Risk indicator (replaces raw sentiment score)
             vader = email.get("vader_compound")
-            if vader is not None:
-                if vader < -0.3:
-                    tone_label = f"Negative ({vader:.2f}) &mdash; aggressive, threatening, or urgent tone"
-                elif vader > 0.3:
-                    tone_label = f"Positive ({vader:.2f}) &mdash; unusually upbeat given the context"
-                else:
-                    tone_label = f"Neutral ({vader:.2f})"
-                email_elements.append(Paragraph(
-                    f"&bull; <b>Sentiment:</b> {tone_label}",
-                    styles["BodySmall"],
-                ))
+            has_keywords = bool(keywords)
+            has_negative_tone = vader is not None and vader < -0.3
+
+            if has_keywords and has_negative_tone:
+                risk_text = '<font color="#dc2626"><b>HIGH RISK</b></font> &mdash; Threat keywords detected with negative tone'
+            elif has_keywords:
+                risk_categories = ", ".join(cat.replace("_", " ").title() for cat in keywords.keys())
+                risk_text = f'<font color="#dc2626"><b>FLAGGED</b></font> &mdash; {risk_categories} keywords detected'
+            elif has_negative_tone:
+                risk_text = f'<font color="#b45309"><b>WATCH</b></font> &mdash; Unusually negative tone (may indicate stress or urgency)'
+            else:
+                risk_text = '<b>FLAGGED</b> &mdash; Flagged by behavioral pattern analysis'
+
+            email_elements.append(Paragraph(
+                f"&bull; <b>Risk Assessment:</b> {risk_text}",
+                styles["BodySmall"],
+            ))
 
             email_elements.append(Spacer(1, 4))
 
             # Body snippet with highlighted keywords
-            snippet = email.get("body_snippet", "")
+            snippet = email.get("body_snippet", "")[:300]
             if snippet:
                 email_elements.append(Paragraph("<b>Relevant excerpt from the email:</b>", styles["SubHead2"]))
                 highlighted = _highlight_keywords_in_text(snippet)
-                email_elements.append(Paragraph(
+                if len(email.get("body_snippet", "")) > 300:
+                    highlighted += "..."
+                email_elements.append(_quote_box(
                     f'&ldquo;{highlighted}&rdquo;',
-                    styles["Quote"],
+                    styles,
                 ))
 
             email_elements.append(Spacer(1, 8))
