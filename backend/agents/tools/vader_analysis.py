@@ -86,6 +86,11 @@ async def batch_analyze_emails(emails: list[dict], trace_id: str = "unknown") ->
 
         results.append({
             "message_id": email.get("message_id"),
+            "subject": email.get("subject", ""),
+            "body": (email.get("body", "") or "")[:500],
+            "from_addr": email.get("from_addr", email.get("source", "")),
+            "to_addr": email.get("to_addr", email.get("target", "")),
+            "date": email.get("date", ""),
             "vader_compound": sentiment["compound"],
             "keywords": keywords_found,
             "flagged": bool(keywords_found) or sentiment["compound"] < -0.5,

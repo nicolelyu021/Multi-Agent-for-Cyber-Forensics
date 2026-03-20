@@ -70,7 +70,8 @@ async def get_emails_between(
         MATCH (a:Person {email: $source})-[:SENT]->(e:Email)-[:RECEIVED_TO|RECEIVED_CC]->(b:Person {email: $target})
         WHERE e.date >= $start_date AND e.date <= $end_date
         RETURN e.message_id AS message_id, e.date AS date, e.subject AS subject,
-               e.body AS body, e.vader_compound AS vader_compound
+               e.body AS body, e.vader_compound AS vader_compound,
+               a.email AS from_addr, b.email AS to_addr
         ORDER BY e.date
     """
     return neo4j_client.execute_read(query, {

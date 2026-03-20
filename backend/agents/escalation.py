@@ -125,6 +125,13 @@ Provide a clear 3-4 sentence alert summary and recommended next actions for the 
         except Exception:
             pass
 
+        # Forward to Slack (mock or real)
+        try:
+            from integrations.slack_mcp import send_alert_to_slack
+            await send_alert_to_slack(alert_payload)
+        except Exception:
+            pass
+
     reasoning = (
         f"Final confidence: {final_confidence:.4f} (investigator={inv_conf:.2f}, sentiment={sent_conf:.2f}). "
         f"Threat category: {threat_category}. Status: {review_status}. "
