@@ -24,6 +24,7 @@ async def get_graph_snapshot(
     end_date: str | None = None,
     department: str | None = None,
     threat_category: str | None = None,
+    include_scores: bool = False,
 ):
     """Full graph snapshot filtered by time/dept/threat for dashboard rendering.
 
@@ -95,5 +96,27 @@ async def get_graph_snapshot(
             active_ids.add(e["source"])
             active_ids.add(e["target"])
         nodes = [n for n in nodes if n["id"] in active_ids]
+
+    # Compute per-node suspicion scores from edge anomaly data
+    if include_scores and edges:
+        score_map: dict[str, dict] = {}
+        for e in edges:
+            for person_id in (e["source"], e["target"]):
+                if person_id not in score_map:
+                    score_map[person_id] = {"total_anomaly": 0.0, "anomalous_edges": 0, "total_volume": 0}
+                score_map[person_id]["total_anomaly"] += float(e.get("anomaly_score", 0))
+                score_map[person_id]["total_volume"] += int(e.get("volume", 0))
+                if float(e.get("anomaly_score", 0)) > 2.0:
+                    score_map[person_id]["anomalous_edges"] += 1
+
+        for node in nodes:
+            nid = node["id"]
+            if nid in score_map:
+                s = score_map[nid]
+                # Suspicion = weighted combo of anomaly scores and edge count, normalized 0-100
+                raw = (s["total_anomaly"] * 8) + (s["anomalous_edges"] * 15) + (s["total_volume"] * 0.3)
+                node["suspicion_score"] = round(min(100, max(0, raw)), 1)
+            else:
+                node["suspicion_score"] = 0
 
     return {"nodes": nodes, "edges": edges}
