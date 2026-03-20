@@ -2,8 +2,29 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { AlertPayload } from "@/lib/types";
 
+export interface GraphUpdate {
+  type: "graph_update";
+  week: string;
+  position: number;
+  total_weeks: number;
+  emails_in_batch: number;
+  nodes: { id: string; name: string; department: string }[];
+  edges: { source: string; target: string; volume: number; anomaly_score: number }[];
+}
+
+export interface SlackNotificationWS {
+  type: "slack_notification";
+  id: string;
+  channel: string;
+  severity: string;
+  message: string;
+  created_at: string;
+}
+
 export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
   const [alerts, setAlerts] = useState<AlertPayload[]>([]);
+  const [graphUpdates, setGraphUpdates] = useState<GraphUpdate[]>([]);
+  const [slackNotifications, setSlackNotifications] = useState<SlackNotificationWS[]>([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout>>();
@@ -26,8 +47,30 @@ export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
 
       ws.onmessage = (event) => {
         try {
-          const alert: AlertPayload = JSON.parse(event.data);
-          setAlerts((prev) => [alert, ...prev]);
+          const data = JSON.parse(event.data);
+
+          if (data.type === "graph_update") {
+            setGraphUpdates((prev) => [data as GraphUpdate, ...prev.slice(0, 49)]);
+          } else if (data.type === "slack_notification") {
+            setSlackNotifications((prev) => [data as SlackNotificationWS, ...prev.slice(0, 49)]);
+          } else if (data.type === "stream_alert") {
+            // Stream alerts show as both alerts and slack notifications
+            const alert: AlertPayload = {
+              alert_id: data.alert_id,
+              trace_id: data.trace_id,
+              threat_category: data.threat_category,
+              confidence_score: data.confidence_score,
+              summary: data.summary,
+              anomalous_edges: data.anomalous_edges || [],
+              behavioral_profiles: [],
+              proposed_action: data.proposed_action || "review_required",
+            };
+            setAlerts((prev) => [alert, ...prev]);
+          } else {
+            // Regular alert
+            const alert: AlertPayload = data;
+            setAlerts((prev) => [alert, ...prev]);
+          }
         } catch {
           // Ignore non-JSON messages (heartbeat responses etc.)
         }
@@ -35,7 +78,6 @@ export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
 
       ws.onclose = () => {
         setConnected(false);
-        // Reconnect after 3s
         reconnectRef.current = setTimeout(connect, 3000);
       };
 
@@ -57,5 +99,5 @@ export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
     setAlerts((prev) => prev.filter((a) => a.alert_id !== alertId));
   }, []);
 
-  return { alerts, connected, dismissAlert };
+  return { alerts, graphUpdates, slackNotifications, connected, dismissAlert };
 }

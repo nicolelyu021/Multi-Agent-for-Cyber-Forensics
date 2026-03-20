@@ -4,6 +4,7 @@ export interface GraphNode {
   name: string;
   department: string;
   degree: number;
+  suspicion_score?: number;
   x?: number;
   y?: number;
 }
@@ -146,3 +147,5 @@ export type ThreatCategory =
   | "financial_fraud"
   | "data_destruction"
   | "inappropriate_relations";
+
+export type Persona = "soc_analyst" | "compliance_officer" | "executive";

@@ -24,41 +24,57 @@ export const AGENT_LABELS: Record<string, string> = {
   escalation: "Escalation",
 };
 
-export const COMPLIANCE_ROWS = [
+export interface ComplianceRowDef {
+  requirement: string;
+  framework: string;
+  feature: string;
+  /** Which forensic event types prove this requirement */
+  evidenceEventTypes: string[];
+  /** Fallback status when no trace exists */
+  defaultStatus: "demonstrated" | "partial" | "pending";
+}
+
+export const COMPLIANCE_ROWS: ComplianceRowDef[] = [
   {
     requirement: "Measure 2.8 (Transparency)",
     framework: "NIST AI RMF",
     feature: "Forensic Wrapper + Hash Chain",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["agent_start", "agent_end", "tool_call"],
+    defaultStatus: "pending",
   },
   {
     requirement: "Map 1.6 (Human Oversight)",
     framework: "NIST AI RMF",
     feature: "Analyst Override Gate",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["human_override"],
+    defaultStatus: "pending",
   },
   {
     requirement: "Govern 1.2 (Accountability)",
     framework: "NIST AI RMF",
     feature: "Append-Only Hash Chain + Tamper Detection",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["agent_end"],
+    defaultStatus: "pending",
   },
   {
     requirement: "Article 9 (Risk Management)",
     framework: "EU AI Act",
     feature: "Confidence Thresholds + Deliberation",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["inter_agent_deliberation", "escalation_alert"],
+    defaultStatus: "pending",
   },
   {
     requirement: "Article 13 (Transparency)",
     framework: "EU AI Act",
     feature: "Three-Layer Forensic Traces",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["agent_end", "tool_call"],
+    defaultStatus: "pending",
   },
   {
     requirement: "Article 14 (Human Oversight)",
     framework: "EU AI Act",
     feature: "Human Review Gate + Override Logging",
-    status: "demonstrated" as const,
+    evidenceEventTypes: ["escalation_alert", "human_override"],
+    defaultStatus: "pending",
   },
 ];

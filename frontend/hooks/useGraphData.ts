@@ -8,6 +8,7 @@ export function useGraphData(filters: {
   end_date?: string;
   department?: string;
   threat_category?: string;
+  include_scores?: boolean;
 }) {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -42,7 +43,7 @@ export function useGraphData(filters: {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [filters.start_date, filters.end_date, filters.department, filters.threat_category, fetchData]);
+  }, [filters.start_date, filters.end_date, filters.department, filters.threat_category, filters.include_scores, fetchData]);
 
   return { nodes, edges, loading, error, refetch: fetchData };
 }

@@ -17,12 +17,14 @@ export async function getGraphSnapshot(params?: {
   end_date?: string;
   department?: string;
   threat_category?: string;
+  include_scores?: boolean;
 }) {
   const qs = new URLSearchParams();
   if (params?.start_date) qs.set("start_date", params.start_date);
   if (params?.end_date) qs.set("end_date", params.end_date);
   if (params?.department) qs.set("department", params.department);
   if (params?.threat_category) qs.set("threat_category", params.threat_category);
+  if (params?.include_scores) qs.set("include_scores", "true");
   return fetchJSON<{ nodes: any[]; edges: any[] }>(`/graph/snapshot?${qs}`);
 }
 
@@ -104,6 +106,51 @@ export async function exportReport(traceId: string) {
   return res.blob();
 }
 
+// ── Flagged Emails ──
+export interface FlaggedEmail {
+  message_id: string;
+  subject: string;
+  body: string;
+  from_addr: string;
+  to_addr: string;
+  date: string;
+  vader_compound: number | null;
+  keywords: Record<string, string[]>;
+  flagged: boolean;
+}
+
+export async function getFlaggedEmails(traceId: string): Promise<FlaggedEmail[]> {
+  return fetchJSON<FlaggedEmail[]>(`/forensic/emails/${traceId}`);
+}
+
+// ── Person Explanation ──
+export async function getPersonExplanation(
+  traceId: string,
+  personEmail: string,
+  persona: string = "soc_analyst",
+): Promise<{ person: string; persona: string; explanation: string; metrics: any }> {
+  return fetchJSON(`/forensic/explain/${traceId}/${encodeURIComponent(personEmail)}?persona=${persona}`);
+}
+
+// ── Monitoring ──
+export async function getBaselines() {
+  return fetchJSON<any[]>("/analysis/monitoring/baselines");
+}
+
+export async function getDeviations(traceId: string) {
+  return fetchJSON<any[]>(`/analysis/monitoring/deviations/${traceId}`);
+}
+
+export async function getSensitivity(traceId: string, thresholds: string = "1.0,1.5,2.0,2.5,3.0") {
+  return fetchJSON<{ threshold: number; flagged_edges: number; flagged_people: number }[]>(
+    `/analysis/sensitivity/${traceId}?thresholds=${thresholds}`
+  );
+}
+
+export async function getDrift(traceId: string) {
+  return fetchJSON<any>(`/analysis/monitoring/drift/${traceId}`);
+}
+
 // ── Human Review ──
 export async function getPendingReviews() {
   return fetchJSON<any[]>("/review/pending");
@@ -117,4 +164,46 @@ export async function submitReview(
     method: "POST",
     body: JSON.stringify(decision),
   });
+}
+
+// ── Streaming Simulation ──
+export async function startStream(speed: number = 5) {
+  return fetchJSON<{ status: string; speed?: number }>("/analysis/monitoring/simulate-stream", {
+    method: "POST",
+    body: JSON.stringify({ speed }),
+  });
+}
+
+export async function getStreamStatus() {
+  return fetchJSON<{
+    active: boolean;
+    position: number;
+    total_weeks: number;
+    emails_processed: number;
+    total_emails: number;
+    alerts_generated: number;
+    speed: number;
+    current_week_label: string;
+  }>("/analysis/monitoring/simulate-stream/status");
+}
+
+export async function stopStream() {
+  return fetchJSON<{ status: string }>("/analysis/monitoring/simulate-stream/stop", {
+    method: "POST",
+  });
+}
+
+// ── Slack Notifications ──
+export interface SlackNotification {
+  id: string;
+  trace_id: string;
+  channel: string;
+  severity: string;
+  message: string;
+  payload: string;
+  created_at: string;
+}
+
+export async function getSlackNotifications(limit: number = 20) {
+  return fetchJSON<SlackNotification[]>(`/analysis/notifications?limit=${limit}`);
 }
