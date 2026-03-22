@@ -9,6 +9,7 @@ export function useGraphData(filters: {
   department?: string;
   threat_category?: string;
   include_scores?: boolean;
+  person_emails?: string[];
 }) {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -43,7 +44,8 @@ export function useGraphData(filters: {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [filters.start_date, filters.end_date, filters.department, filters.threat_category, filters.include_scores, fetchData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.start_date, filters.end_date, filters.department, filters.threat_category, filters.include_scores, JSON.stringify(filters.person_emails), fetchData]);
 
   return { nodes, edges, loading, error, refetch: fetchData };
 }

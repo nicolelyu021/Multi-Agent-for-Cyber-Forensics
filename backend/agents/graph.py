@@ -83,6 +83,8 @@ async def run_threat_analysis(
     end_date: str,
     anomaly_threshold: float = 2.0,
     confidence_threshold: float = 0.7,
+    departments: list[str] | None = None,
+    person_emails: list[str] | None = None,
 ) -> dict:
     """Run the full threat analysis pipeline."""
     initial_state: ThreatAnalysisState = {
@@ -90,6 +92,8 @@ async def run_threat_analysis(
         "end_date": end_date,
         "anomaly_threshold": anomaly_threshold,
         "confidence_threshold": confidence_threshold,
+        "departments": departments,
+        "person_emails": person_emails,
         "root_trace_id": str(uuid.uuid4()),
         "datasets_accessed": [],
         "anomalous_edges": [],

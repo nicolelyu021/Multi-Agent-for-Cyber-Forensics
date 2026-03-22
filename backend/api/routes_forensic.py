@@ -3,6 +3,7 @@ import json
 import aiosqlite
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from config import settings
 from forensic.hasher import verify_chain
@@ -366,3 +367,134 @@ async def export_report(root_trace_id: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=audit_report_{root_trace_id}.pdf"},
     )
+
+
+class PersonQuery(BaseModel):
+    question: str
+    persona: str = "soc_analyst"
+
+
+@router.post("/query/{root_trace_id}/{person_email}")
+async def query_person(root_trace_id: str, person_email: str, req: PersonQuery):
+    """Answer a free-text question about a person using forensic trace context."""
+    # Gather context (same logic as explain_person)
+    async with aiosqlite.connect(settings.forensic_db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM forensic_records WHERE trace_id = ? ORDER BY timestamp",
+            (root_trace_id,),
+        )
+        rows = await cursor.fetchall()
+        if not rows:
+            raise HTTPException(404, "Trace not found")
+        records = [dict(row) for row in rows]
+
+    person = person_email.lower().strip()
+    person_short = person.split("@")[0].replace(".", " ").title()
+
+    # Extract person-specific data from forensic records
+    edges = []
+    keywords_found: dict[str, list] = {}
+    vader_scores: list[float] = []
+    email_count = 0
+    email_subjects: list[str] = []
+
+    for rec in records:
+        if rec.get("event_type") != "tool_call" or not rec.get("tool_output"):
+            continue
+        try:
+            data = json.loads(rec["tool_output"])
+            if not isinstance(data, list):
+                continue
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                src = str(item.get("source", "")).lower()
+                tgt = str(item.get("target", "")).lower()
+                if person in (src, tgt):
+                    score = item.get("anomaly_score", 0)
+                    if isinstance(score, (int, float)) and score > 0.5:
+                        edges.append(item)
+                from_addr = str(item.get("from_addr", item.get("from", ""))).lower()
+                to_addr = str(item.get("to_addr", item.get("to", ""))).lower()
+                if person in (from_addr, to_addr):
+                    email_count += 1
+                    subj = item.get("subject", "")
+                    if subj:
+                        email_subjects.append(subj)
+                    kw = item.get("keywords", {})
+                    if kw:
+                        for cat, terms in kw.items():
+                            keywords_found.setdefault(cat, []).extend(
+                                terms if isinstance(terms, list) else []
+                            )
+                    vc = item.get("vader_compound")
+                    if vc is not None:
+                        vader_scores.append(float(vc))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    # Get confidence scores
+    inv_conf = sent_conf = final_conf = None
+    for rec in records:
+        if rec.get("event_type") == "agent_end":
+            if rec.get("agent_id") == "investigator":
+                inv_conf = rec.get("confidence_score")
+            elif rec.get("agent_id") == "sentiment_analyzer":
+                sent_conf = rec.get("confidence_score")
+            elif rec.get("agent_id") == "escalation":
+                final_conf = rec.get("confidence_score")
+
+    avg_vader = sum(vader_scores) / len(vader_scores) if vader_scores else 0
+
+    # Build context for LLM
+    context = f"""Person: {person_short} ({person_email})
+Emails analyzed: {email_count}
+Anomalous communication links: {len(edges)}
+Keyword categories found: {', '.join(set(keywords_found.keys())) or 'none'}
+Average VADER sentiment: {avg_vader:.2f}
+Investigator confidence: {f'{inv_conf*100:.0f}%' if inv_conf else 'N/A'}
+Sentiment confidence: {f'{sent_conf*100:.0f}%' if sent_conf else 'N/A'}
+Final confidence: {f'{final_conf*100:.0f}%' if final_conf else 'N/A'}
+
+Top anomalous edges:
+{json.dumps(edges[:5], indent=2, default=str)}
+
+Sample email subjects: {', '.join(email_subjects[:10]) or 'none'}
+Keywords: {json.dumps({k: v[:5] for k, v in keywords_found.items()}, default=str)}"""
+
+    # Call LLM
+    try:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.messages import SystemMessage, HumanMessage
+
+        llm = ChatOpenAI(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url,
+            temperature=0.3,
+        )
+
+        system_prompt = f"""You are a cybersecurity forensic analyst assistant. You have access to
+forensic trace data from a multi-agent insider threat detection system analyzing the Enron email corpus.
+Answer the analyst's question about the person below using ONLY the provided context.
+Be concise, factual, and cite specific data points. Persona: {req.persona}."""
+
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"Context:\n{context}\n\nQuestion: {req.question}"),
+        ])
+
+        return {
+            "answer": response.content,
+            "sources": [f"Trace {root_trace_id}", f"{email_count} emails", f"{len(edges)} anomalous edges"],
+        }
+    except Exception as e:
+        # Fallback: return context-based summary without LLM
+        return {
+            "answer": f"Unable to query AI ({type(e).__name__}). Context summary for {person_short}: "
+                      f"{email_count} emails analyzed, {len(edges)} anomalous links found, "
+                      f"avg sentiment {avg_vader:.2f}, "
+                      f"keywords: {', '.join(set(keywords_found.keys())) or 'none'}.",
+            "sources": [f"Trace {root_trace_id}"],
+        }

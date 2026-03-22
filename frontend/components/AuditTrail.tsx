@@ -32,6 +32,7 @@ export function AuditTrail({ records, verification, traceId, onVerify, onReviewS
   const [rationale, setRationale] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Show key records by default, all on toggle
   const displayRecords = useMemo(() => {
@@ -62,6 +63,7 @@ export function AuditTrail({ records, verification, traceId, onVerify, onReviewS
   const handleSubmitReview = async () => {
     if (!traceId || !escalationAlert || !reviewDecision || !rationale.trim()) return;
     setSubmitting(true);
+    setReviewError(null);
     try {
       await submitReview(escalationAlert.span_id, {
         analyst_id: "demo_analyst",
@@ -71,7 +73,7 @@ export function AuditTrail({ records, verification, traceId, onVerify, onReviewS
       setReviewSubmitted(true);
       onReviewSubmitted?.();
     } catch {
-      // ignore
+      setReviewError("Failed to submit review. Check that the backend is running and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -311,6 +313,11 @@ export function AuditTrail({ records, verification, traceId, onVerify, onReviewS
             <Send style={{ width: 12, height: 12 }} />
             {submitting ? "Submitting..." : "Submit Review"}
           </button>
+          {reviewError && (
+            <div style={{ fontSize: 10, color: "var(--accent-red)", marginTop: 6, textAlign: "center" }}>
+              {reviewError}
+            </div>
+          )}
         </div>
       )}
 

@@ -21,7 +21,13 @@ export interface SlackNotificationWS {
   created_at: string;
 }
 
-export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
+function getWsUrl() {
+  if (typeof window === "undefined") return "";
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/ws/alerts`;
+}
+
+export function useWebSocket(url?: string) {
   const [alerts, setAlerts] = useState<AlertPayload[]>([]);
   const [graphUpdates, setGraphUpdates] = useState<GraphUpdate[]>([]);
   const [slackNotifications, setSlackNotifications] = useState<SlackNotificationWS[]>([]);
@@ -30,8 +36,10 @@ export function useWebSocket(url = "ws://localhost:8000/ws/alerts") {
   const reconnectRef = useRef<ReturnType<typeof setTimeout>>();
 
   const connect = useCallback(() => {
+    const wsUrl = url || getWsUrl();
+    if (!wsUrl) return;
     try {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {

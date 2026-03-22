@@ -44,6 +44,8 @@ class ThreatAnalysisState(TypedDict):
     end_date: str
     anomaly_threshold: float
     confidence_threshold: float
+    departments: Optional[list[str]]
+    person_emails: Optional[list[str]]
 
     # Forensic metadata
     root_trace_id: str

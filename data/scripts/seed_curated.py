@@ -391,13 +391,32 @@ def seed():
             WITH a, b, r, r.total_volume AS vol
             SET r.trailing_30d_volume = vol,
                 r.trailing_30d_baseline = CASE
-                    WHEN vol > 20 THEN vol * 0.3
+                    WHEN vol > 15 THEN vol * 0.3
+                    WHEN vol > 5  THEN vol * 0.5
                     ELSE vol * 0.8
                 END,
                 r.anomaly_score = CASE
-                    WHEN vol > 20 THEN (vol - vol * 0.3) / (vol * 0.15 + 1)
-                    ELSE 0.5
+                    WHEN vol > 30 THEN (vol - vol * 0.3) / (vol * 0.12 + 1)
+                    WHEN vol > 15 THEN (vol - vol * 0.5) / (vol * 0.15 + 1) + 0.5
+                    WHEN vol > 8  THEN 1.2
+                    WHEN vol > 3  THEN 0.8
+                    ELSE 0.3
                 END
+        """)
+
+        # Boost anomaly score for edges carrying threat-category emails
+        print("Boosting scores for threat-category edges...")
+        session.run("""
+            MATCH (a:Person)-[:SENT]->(e:Email)-[:RECEIVED_TO|RECEIVED_CC]->(b:Person)
+            WHERE e.threat_category IS NOT NULL AND e.threat_category <> ''
+            WITH a, b, count(e) AS threat_count
+            MATCH (a)-[r:COMMUNICATES_WITH]->(b)
+            SET r.anomaly_score = CASE
+                    WHEN r.anomaly_score + (threat_count * 0.3) < 2.5
+                    THEN 2.5 + threat_count * 0.1
+                    ELSE r.anomaly_score + (threat_count * 0.3)
+                END,
+                r.threat_email_count = threat_count
         """)
 
         # Compute degree centrality

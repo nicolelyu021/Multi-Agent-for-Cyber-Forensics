@@ -51,13 +51,19 @@ export function useForensicTrace() {
     }
   }, []);
 
-  const downloadReport = useCallback(async (traceId: string) => {
+  const downloadReport = useCallback(async (
+    traceId: string,
+    meta?: { threat?: string; date?: string },
+  ) => {
     try {
       const blob = await exportReport(traceId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `audit_report_${traceId}.pdf`;
+      const dateStr = meta?.date || new Date().toISOString().slice(0, 10);
+      const threat = (meta?.threat || "analysis").replace(/\s+/g, "_");
+      const shortId = traceId.slice(0, 8);
+      a.download = `enron_forensic_report_${dateStr}_${threat}_${shortId}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

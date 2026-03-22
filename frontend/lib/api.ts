@@ -18,6 +18,7 @@ export async function getGraphSnapshot(params?: {
   department?: string;
   threat_category?: string;
   include_scores?: boolean;
+  person_emails?: string[];
 }) {
   const qs = new URLSearchParams();
   if (params?.start_date) qs.set("start_date", params.start_date);
@@ -25,7 +26,27 @@ export async function getGraphSnapshot(params?: {
   if (params?.department) qs.set("department", params.department);
   if (params?.threat_category) qs.set("threat_category", params.threat_category);
   if (params?.include_scores) qs.set("include_scores", "true");
+  if (params?.person_emails?.length) qs.set("person_emails", params.person_emails.join(","));
   return fetchJSON<{ nodes: any[]; edges: any[] }>(`/graph/snapshot?${qs}`);
+}
+
+export async function searchEmployees(query: string, limit = 15) {
+  return fetchJSON<{ id: string; name: string; department: string }[]>(
+    `/graph/nodes/search?q=${encodeURIComponent(query)}&limit=${limit}`
+  );
+}
+
+export async function getPersonEmails(
+  email: string,
+  startDate?: string,
+  endDate?: string,
+  limit = 50,
+) {
+  const qs = new URLSearchParams();
+  if (startDate) qs.set("start_date", startDate);
+  if (endDate) qs.set("end_date", endDate);
+  qs.set("limit", String(limit));
+  return fetchJSON<any[]>(`/graph/person/${encodeURIComponent(email)}/emails?${qs}`);
 }
 
 // ── Analysis ──
@@ -34,6 +55,8 @@ export async function startAnalysis(body: {
   end_date: string;
   anomaly_threshold?: number;
   confidence_threshold?: number;
+  departments?: string[];
+  person_emails?: string[];
 }) {
   return fetchJSON<{ run_id: string; status: string }>("/analysis/run", {
     method: "POST",
@@ -53,7 +76,7 @@ export async function getAnalysisResults(runId: string) {
 export async function pollAnalysisUntilDone(
   runId: string,
   onStatusChange?: (status: string) => void,
-  maxWaitMs = 120000,
+  maxWaitMs = 300000,
   intervalMs = 2000,
 ): Promise<{ run_id: string; status: string; result: any }> {
   const start = Date.now();
@@ -130,6 +153,19 @@ export async function getPersonExplanation(
   persona: string = "soc_analyst",
 ): Promise<{ person: string; persona: string; explanation: string; metrics: any }> {
   return fetchJSON(`/forensic/explain/${traceId}/${encodeURIComponent(personEmail)}?persona=${persona}`);
+}
+
+// ── AI Query ──
+export async function queryPerson(
+  traceId: string,
+  personEmail: string,
+  question: string,
+  persona = "soc_analyst",
+): Promise<{ answer: string; sources: string[] }> {
+  return fetchJSON(`/forensic/query/${traceId}/${encodeURIComponent(personEmail)}`, {
+    method: "POST",
+    body: JSON.stringify({ question, persona }),
+  });
 }
 
 // ── Monitoring ──

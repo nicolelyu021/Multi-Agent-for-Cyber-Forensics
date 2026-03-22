@@ -27,6 +27,7 @@ class AnalysisRequest(BaseModel):
     anomaly_threshold: float = 2.0
     confidence_threshold: float = 0.7
     departments: list[str] | None = None
+    person_emails: list[str] | None = None
 
 
 @router.post("/run")
@@ -50,6 +51,8 @@ async def start_analysis(req: AnalysisRequest, background_tasks: BackgroundTasks
                 end_date=req.end_date,
                 anomaly_threshold=req.anomaly_threshold,
                 confidence_threshold=req.confidence_threshold,
+                departments=req.departments,
+                person_emails=req.person_emails,
             )
             _runs[run_id]["status"] = "completed"
             _runs[run_id]["result"] = result
@@ -461,8 +464,13 @@ async def _run_stream_simulation():
                 }
             edge_map[key]["volume"] += 1
 
-        # Detect volume spikes (simple: >10 emails in a single week between same pair)
-        spike_edges = [e for e in edge_map.values() if e["volume"] > 10]
+        # Detect volume spikes
+        spike_edges = [e for e in edge_map.values() if e["volume"] > 3]
+        # Secondary: total weekly volume spike
+        if not spike_edges:
+            total_week_volume = sum(e["volume"] for e in edge_map.values())
+            if total_week_volume > 50:
+                spike_edges = sorted(edge_map.values(), key=lambda e: e["volume"], reverse=True)[:3]
 
         # Build nodes from edges
         node_set: dict[str, dict] = {}

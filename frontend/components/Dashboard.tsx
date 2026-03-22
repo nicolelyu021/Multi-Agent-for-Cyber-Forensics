@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { FilterPanel } from "./FilterPanel";
 import { GraphView } from "./GraphView";
 import { ForensicPanel } from "./ForensicPanel";
@@ -7,11 +7,11 @@ import { TimeSlider } from "./TimeSlider";
 import { AlertBanner } from "./AlertBanner";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { ExecutiveSummary } from "./ExecutiveSummary";
-import { StreamControl } from "./StreamControl";
+// StreamControl moved to GraphView overlay
 import { SlackNotificationLog } from "./SlackNotificationLog";
 import { ComplianceScorecard } from "./ComplianceScorecard";
-import { CounterfactualToggle } from "./CounterfactualToggle";
-import { TamperSimulation } from "./TamperSimulation";
+import { AgentReasoning } from "./AgentReasoning";
+import { PatternAnalytics } from "./PatternAnalytics";
 import { useGraphData } from "@/hooks/useGraphData";
 import { useForensicTrace } from "@/hooks/useForensicTrace";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -20,14 +20,16 @@ import { listTraces } from "@/lib/api";
 import type { TraceSummary } from "@/lib/api";
 import type { ThreatCategory, GraphEdge, GraphNode, Persona } from "@/lib/types";
 import { DEPARTMENT_COLORS } from "@/lib/constants";
-import { getPersonExplanation } from "@/lib/api";
+import { getPersonExplanation, getPersonEmails, queryPerson } from "@/lib/api";
+import type { SelectedEmployee } from "./FilterPanel";
 import {
   Shield, FileText, GitBranch, ArrowRight, User, Mail,
   AlertTriangle, Activity, Network, BarChart3, X, Brain, Bell,
-  Shuffle, Fingerprint,
+  Sun, Moon, Send, ChevronDown, ChevronRight, Search, Loader2,
 } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 
-type PanelView = "forensic" | "traces" | "person" | "edge" | "notifications" | "compliance" | "counterfactual" | "tamper" | "empty";
+type PanelView = "forensic" | "traces" | "person" | "edge" | "notifications" | "compliance" | "reasoning" | "analytics" | "empty";
 
 export function Dashboard() {
   const [department, setDepartment] = useState<string>("");
@@ -37,11 +39,16 @@ export function Dashboard() {
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string } | null>(null);
   const [availableTraces, setAvailableTraces] = useState<TraceSummary[]>([]);
   const [investigationNodeIds, setInvestigationNodeIds] = useState<Set<string>>(new Set());
-  const [analysisSummary, setAnalysisSummary] = useState<{ confidence: number; threat: string; people: string[] } | null>(null);
+  const [analysisSummary, setAnalysisSummary] = useState<{ confidence: number; threat: string; people: string[]; summary?: string } | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
   const [suspiciousOnly, setSuspiciousOnly] = useState(false);
   const [persona, setPersona] = useState<Persona>("soc_analyst");
+  const [selectedEmployees, setSelectedEmployees] = useState<SelectedEmployee[]>([]);
+  const [leftWidth, setLeftWidth] = useState(240);
+  const [rightWidth, setRightWidth] = useState(340);
+  const { theme, toggle: toggleTheme, mounted: themeMounted } = useTheme();
+  const lastAnalysisResultRef = useRef<any>(null);
 
   const timeSlider = useTimeSlider("1999-06-01", "2002-06-01");
   const { nodes, edges, loading: graphLoading, refetch } = useGraphData({
@@ -50,6 +57,7 @@ export function Dashboard() {
     department: department || undefined,
     threat_category: threats.length === 1 ? threats[0] : undefined,
     include_scores: hasRunAnalysis,
+    person_emails: selectedEmployees.length > 0 ? selectedEmployees.map(e => e.id) : undefined,
   });
   const forensic = useForensicTrace();
   const { alerts, connected, dismissAlert, slackNotifications } = useWebSocket();
@@ -101,20 +109,22 @@ export function Dashboard() {
   const handleAnalysisComplete = useCallback(
     (traceId: string | null, result?: any) => {
       setHasRunAnalysis(true);
+      if (result) lastAnalysisResultRef.current = result;
       refetch();
       refreshTraces();
       if (traceId) {
         loadTraceById(traceId);
       }
-      // Extract investigation nodes from analysis results
+      // Initial extraction from analysis result (edges may be stale here — useEffect below re-computes)
       if (result) {
         const nodeIds = new Set<string>();
-        const anomEdges = result.anomalous_edges || [];
+        const payload = result.alert_payload || {};
+        const anomEdges = payload.anomalous_edges || result.anomalous_edges || [];
         for (const e of anomEdges) {
           if (e.source) nodeIds.add(e.source);
           if (e.target) nodeIds.add(e.target);
         }
-        const profiles = result.behavioral_profiles || [];
+        const profiles = payload.behavioral_profiles || result.behavioral_profiles || [];
         for (const p of profiles) {
           if (p.person) nodeIds.add(p.person);
         }
@@ -123,12 +133,43 @@ export function Dashboard() {
           confidence: result.final_confidence || 0,
           threat: result.threat_category || "unknown",
           people: Array.from(nodeIds).map(id => id.split("@")[0].replace(/\./g, " ")).map(n => n.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")),
+          summary: payload.summary || "",
         });
         setShowBanner(true);
       }
     },
     [refetch, refreshTraces, loadTraceById]
   );
+
+  // Reactively update investigation nodes when edges change (fixes stale-edge timing bug)
+  useEffect(() => {
+    if (!hasRunAnalysis || !lastAnalysisResultRef.current) return;
+    const result = lastAnalysisResultRef.current;
+    const nodeIds = new Set<string>();
+    const payload = result.alert_payload || {};
+    const anomEdges = payload.anomalous_edges || result.anomalous_edges || [];
+    for (const e of anomEdges) {
+      if (e.source) nodeIds.add(e.source);
+      if (e.target) nodeIds.add(e.target);
+    }
+    const profiles = payload.behavioral_profiles || result.behavioral_profiles || [];
+    for (const p of profiles) {
+      if (p.person) nodeIds.add(p.person);
+    }
+    // Include nodes from graph edges that are anomalous (now with fresh edge data)
+    for (const e of edges) {
+      if ((e.anomaly_score || 0) > 2) {
+        nodeIds.add(e.source);
+        nodeIds.add(e.target);
+      }
+    }
+    setInvestigationNodeIds(nodeIds);
+    // Update people list in summary
+    setAnalysisSummary(prev => prev ? {
+      ...prev,
+      people: Array.from(nodeIds).map(id => id.split("@")[0].replace(/\./g, " ")).map(n => n.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")),
+    } : prev);
+  }, [edges, hasRunAnalysis]);
 
   // Find selected node/edge data
   const selectedNodeData = selectedNode
@@ -176,12 +217,18 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [timeSlider]);
 
+  // Auto-switch panel based on persona
+  useEffect(() => {
+    if (persona === "compliance_officer") setRightPanel("compliance");
+    else if (persona === "executive") setRightPanel("forensic");
+  }, [persona]);
+
   // Icon sidebar items
   const sidebarItems: { key: PanelView; icon: React.ReactNode; label: string }[] = [
-    { key: "forensic", icon: <Shield style={{ width: 16, height: 16 }} />, label: "Investigation" },
-    { key: "traces", icon: <GitBranch style={{ width: 16, height: 16 }} />, label: "Traces" },
-    { key: "compliance", icon: <FileText style={{ width: 16, height: 16 }} />, label: "Compliance" },
-    { key: "notifications", icon: <Bell style={{ width: 16, height: 16 }} />, label: "Notifications" },
+    { key: "forensic", icon: <Shield style={{ width: 18, height: 18 }} />, label: "Forensic" },
+    { key: "traces", icon: <GitBranch style={{ width: 18, height: 18 }} />, label: "Traces" },
+    { key: "compliance", icon: <FileText style={{ width: 18, height: 18 }} />, label: "Comply" },
+    { key: "notifications", icon: <Bell style={{ width: 18, height: 18 }} />, label: "Alerts" },
   ];
 
   return (
@@ -222,8 +269,23 @@ export function Dashboard() {
           />
         </div>
 
-        {/* Right: Status */}
+        {/* Right: Theme toggle + Status */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28, borderRadius: 6,
+              background: "var(--bg-card)", border: "1px solid var(--border)",
+              cursor: "pointer", color: "var(--text-secondary)",
+              transition: "all 0.15s",
+            }}
+          >
+            {(!themeMounted || theme === "dark")
+              ? <Sun style={{ width: 14, height: 14 }} />
+              : <Moon style={{ width: 14, height: 14 }} />}
+          </button>
           <div style={{
             display: "flex", alignItems: "center", gap: 5,
             padding: "3px 8px", borderRadius: 100,
@@ -242,25 +304,36 @@ export function Dashboard() {
         </div>
       </header>
 
-      {/* ── Alert Banner ── */}
-      {alerts.length > 0 && (
-        <AlertBanner alerts={alerts} onDismiss={dismissAlert} onClick={handleAlertClick} />
-      )}
+      {/* Alert banner removed for cleaner readability */}
 
       {/* ── Body: Left Panel | Center | Right Panel | Icon Sidebar ── */}
       <div className="dashboard-body">
-        <div className="panel-left">
-          <FilterPanel
-            department={department}
-            onDepartmentChange={setDepartment}
-            threats={threats}
-            onThreatsChange={setThreats}
-            onRunAnalysis={handleAnalysisComplete}
-          />
-          <div style={{ padding: "0 12px 12px" }}>
-            <StreamControl />
-          </div>
+        <div className="panel-left" style={{ width: leftWidth }}>
+          {leftWidth > 80 ? (
+            <FilterPanel
+              department={department}
+              onDepartmentChange={setDepartment}
+              threats={threats}
+              onThreatsChange={setThreats}
+              onRunAnalysis={handleAnalysisComplete}
+              selectedEmployees={selectedEmployees}
+              onEmployeesChange={setSelectedEmployees}
+            />
+          ) : (
+            <button
+              onClick={() => setLeftWidth(240)}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", padding: "12px 0", width: "100%",
+                fontSize: 16,
+              }}
+              title="Expand filters"
+            >
+              ›
+            </button>
+          )}
         </div>
+        <ResizeHandle side="left" onResize={setLeftWidth} currentWidth={leftWidth} min={48} max={400} />
 
         <div className="panel-center">
           <div className="graph-container">
@@ -279,7 +352,8 @@ export function Dashboard() {
               <div style={{
                 position: "absolute", bottom: 12, left: 12, right: 12,
                 padding: "10px 14px", borderRadius: 8, zIndex: 20,
-                background: "rgba(15,19,24,0.92)", backdropFilter: "blur(8px)",
+                background: theme === "light" ? "rgba(255,255,255,0.94)" : "rgba(15,19,24,0.92)",
+                backdropFilter: "blur(8px)",
                 border: "1px solid rgba(59,130,246,0.3)",
                 display: "flex", alignItems: "center", gap: 12,
               }}>
@@ -313,7 +387,7 @@ export function Dashboard() {
                   Review Evidence
                 </button>
                 <button
-                  onClick={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
+                  onClick={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId, { threat: analysisSummary?.threat, date: new Date().toISOString().slice(0, 10) })}
                   style={{
                     padding: "5px 12px", borderRadius: 6, fontSize: 10, fontWeight: 600,
                     cursor: "pointer", background: "var(--bg-card)", color: "var(--text-secondary)",
@@ -353,16 +427,30 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="panel-right">
-          {rightPanel === "forensic" && persona === "executive" && forensic.records.length > 0 && (
-            <ExecutiveSummary
-              records={forensic.records}
-              traceId={forensic.activeTraceId}
-              confidence={analysisSummary?.confidence || 0}
-              threatCategory={analysisSummary?.threat || "unknown"}
-              people={analysisSummary?.people || []}
-              onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
-            />
+        <ResizeHandle side="right" onResize={setRightWidth} currentWidth={rightWidth} min={48} max={600} />
+        <div className="panel-right" style={{ width: rightWidth }}>
+          {rightPanel === "forensic" && persona === "executive" && (
+            forensic.records.length > 0 ? (
+              <ExecutiveSummary
+                records={forensic.records}
+                traceId={forensic.activeTraceId}
+                confidence={analysisSummary?.confidence || 0}
+                threatCategory={analysisSummary?.threat || "unknown"}
+                people={analysisSummary?.people || []}
+                summary={analysisSummary?.summary}
+                onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId, { threat: analysisSummary?.threat, date: new Date().toISOString().slice(0, 10) })}
+              />
+            ) : (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                height: "100%", flexDirection: "column", gap: 12, padding: 32,
+              }}>
+                <Shield style={{ width: 32, height: 32, color: "var(--text-muted)", opacity: 0.3 }} />
+                <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.6 }}>
+                  Run a threat analysis to see the<br />executive summary
+                </p>
+              </div>
+            )
           )}
           {rightPanel === "forensic" && persona !== "executive" && (
             <ForensicPanel
@@ -371,7 +459,7 @@ export function Dashboard() {
               loading={forensic.loading}
               traceId={forensic.activeTraceId}
               onVerify={() => forensic.activeTraceId && forensic.loadVerification(forensic.activeTraceId)}
-              onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId)}
+              onExport={() => forensic.activeTraceId && forensic.downloadReport(forensic.activeTraceId, { threat: analysisSummary?.threat, date: new Date().toISOString().slice(0, 10) })}
               onReviewSubmitted={() => {
                 if (forensic.activeTraceId) {
                   forensic.loadTrace(forensic.activeTraceId);
@@ -435,46 +523,29 @@ export function Dashboard() {
             />
           )}
 
-          {rightPanel === "counterfactual" && forensic.activeTraceId && (
+          {rightPanel === "reasoning" && (
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
               <h2 style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, color: "var(--text-primary)" }}>
-                <Shuffle style={{ width: 16, height: 16, color: "var(--accent-cyan)" }} />
-                What-If Analysis
+                <Brain style={{ width: 16, height: 16, color: "var(--accent-cyan)" }} />
+                Agent Reasoning
               </h2>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                What would the threat assessment look like if each agent was removed?
-                This demonstrates agent contribution attribution per NIST Govern 1.2.
+                How each AI agent contributed to the threat assessment — evidence, tool calls, and reasoning chains.
               </p>
-              {!forensic.counterfactual && (
-                <button
-                  onClick={() => forensic.activeTraceId && forensic.loadCounterfactual(forensic.activeTraceId)}
-                  style={{
-                    padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    background: "rgba(6,182,212,0.15)", color: "var(--accent-cyan)",
-                    border: "1px solid var(--accent-cyan)", cursor: "pointer", width: "100%",
-                  }}
-                >
-                  Run What-If Analysis
-                </button>
-              )}
-              <CounterfactualToggle data={forensic.counterfactual} />
+              <AgentReasoning records={forensic.records} />
             </div>
           )}
 
-          {rightPanel === "tamper" && forensic.activeTraceId && (
+          {rightPanel === "analytics" && (
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
               <h2 style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, color: "var(--text-primary)" }}>
-                <Fingerprint style={{ width: 16, height: 16, color: "var(--accent-red)" }} />
-                Tamper Detection Demo
+                <BarChart3 style={{ width: 16, height: 16, color: "var(--accent-amber)" }} />
+                Communication Patterns
               </h2>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                Demonstrates the SHA-256 hash chain integrity. A record is modified
-                and the chain verification detects the tampering.
+                Cross-department communication frequencies, behavioral deviations, and volume analysis.
               </p>
-              <TamperSimulation
-                data={forensic.tamperSim}
-                onSimulate={() => forensic.activeTraceId && forensic.runTamperSim(forensic.activeTraceId)}
-              />
+              <PatternAnalytics nodes={displayNodes} edges={displayEdges} />
             </div>
           )}
 
@@ -509,44 +580,51 @@ export function Dashboard() {
               title={label}
             >
               {icon}
+              <span>{label}</span>
             </button>
           ))}
-          <div style={{ width: 24, height: 1, background: "var(--border)", margin: "4px 0" }} />
+          <div style={{ width: 36, height: 1, background: "var(--border)", margin: "2px 0" }} />
           {forensic.activeTraceId && (
+            <button
+              className={`icon-sidebar-btn ${rightPanel === "reasoning" ? "active" : ""}`}
+              onClick={() => setRightPanel(rightPanel === "reasoning" ? "empty" : "reasoning")}
+              title="Reasoning"
+            >
+              <Brain style={{ width: 18, height: 18 }} />
+              <span>Reasoning</span>
+            </button>
+          )}
+          {hasRunAnalysis && (
             <>
               <button
-                className={`icon-sidebar-btn ${rightPanel === "counterfactual" ? "active" : ""}`}
-                onClick={() => setRightPanel(rightPanel === "counterfactual" ? "empty" : "counterfactual")}
-                title="What-If Analysis"
+                className={`icon-sidebar-btn ${rightPanel === "analytics" ? "active" : ""}`}
+                onClick={() => setRightPanel(rightPanel === "analytics" ? "empty" : "analytics")}
+                title="Analytics"
               >
-                <Shuffle style={{ width: 16, height: 16 }} />
+                <BarChart3 style={{ width: 18, height: 18 }} />
+                <span>Analytics</span>
               </button>
-              <button
-                className={`icon-sidebar-btn ${rightPanel === "tamper" ? "active" : ""}`}
-                onClick={() => setRightPanel(rightPanel === "tamper" ? "empty" : "tamper")}
-                title="Tamper Demo"
-              >
-                <Fingerprint style={{ width: 16, height: 16 }} />
-              </button>
-              <div style={{ width: 24, height: 1, background: "var(--border)", margin: "4px 0" }} />
+              <div style={{ width: 36, height: 1, background: "var(--border)", margin: "2px 0" }} />
             </>
           )}
           {selectedNode && (
             <button
               className={`icon-sidebar-btn ${rightPanel === "person" ? "active" : ""}`}
               onClick={() => setRightPanel("person")}
-              title="Person Detail"
+              title="Person"
             >
-              <User style={{ width: 16, height: 16 }} />
+              <User style={{ width: 18, height: 18 }} />
+              <span>Person</span>
             </button>
           )}
           {selectedEdge && (
             <button
               className={`icon-sidebar-btn ${rightPanel === "edge" ? "active" : ""}`}
               onClick={() => setRightPanel("edge")}
-              title="Edge Detail"
+              title="Edge"
             >
-              <Mail style={{ width: 16, height: 16 }} />
+              <Mail style={{ width: 18, height: 18 }} />
+              <span>Edge</span>
             </button>
           )}
         </div>
@@ -581,7 +659,63 @@ function DataChip({
   );
 }
 
-// ── Person Detail Panel ──
+// ── Resize Handle ──
+function ResizeHandle({
+  side,
+  onResize,
+  currentWidth,
+  min,
+  max,
+}: {
+  side: "left" | "right";
+  onResize: (width: number) => void;
+  currentWidth: number;
+  min: number;
+  max: number;
+}) {
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    startXRef.current = e.clientX;
+    startWidthRef.current = currentWidth;
+    const onMove = (me: MouseEvent) => {
+      const delta = me.clientX - startXRef.current;
+      const newWidth = side === "left"
+        ? startWidthRef.current + delta
+        : startWidthRef.current - delta;
+      onResize(Math.max(min, Math.min(max, newWidth)));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      style={{
+        width: 5, flexShrink: 0, cursor: "col-resize",
+        background: "transparent", transition: "background 0.15s",
+        position: "relative", zIndex: 10,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-blue)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    />
+  );
+}
+
+// ── Person Detail Panel (Tabbed) ──
+type PersonTab = "overview" | "emails" | "ask";
+
 function PersonDetail({
   node, edges, nodes, traces, onSelectTrace, onViewEdge, persona, activeTraceId,
 }: {
@@ -596,6 +730,30 @@ function PersonDetail({
 }) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [activeTab, setActiveTab] = useState<PersonTab>("overview");
+
+  // Emails tab state
+  const [personEmails, setPersonEmails] = useState<any[]>([]);
+  const [emailsLoading, setEmailsLoading] = useState(false);
+  const [emailsFetched, setEmailsFetched] = useState(false);
+  const [emailSearch, setEmailSearch] = useState("");
+  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
+
+  // Ask AI tab state
+  const [queryInput, setQueryInput] = useState("");
+  const [queryHistory, setQueryHistory] = useState<{ q: string; a: string }[]>([]);
+  const [queryLoading, setQueryLoading] = useState(false);
+
+  // Reset state when node changes
+  useEffect(() => {
+    setActiveTab("overview");
+    setPersonEmails([]);
+    setEmailsFetched(false);
+    setEmailSearch("");
+    setExpandedEmail(null);
+    setQueryHistory([]);
+    setQueryInput("");
+  }, [node.id]);
 
   // Fetch explanation when persona or node changes
   useEffect(() => {
@@ -607,11 +765,21 @@ function PersonDetail({
       .finally(() => setLoadingExplanation(false));
   }, [activeTraceId, node.id, persona]);
 
+  // Fetch emails when Emails tab first opened
+  useEffect(() => {
+    if (activeTab !== "emails" || emailsFetched) return;
+    setEmailsLoading(true);
+    setEmailsFetched(true);
+    getPersonEmails(node.id)
+      .then(setPersonEmails)
+      .catch(() => setPersonEmails([]))
+      .finally(() => setEmailsLoading(false));
+  }, [activeTab, node.id, emailsFetched]);
+
   const name = node.name || node.id.split("@")[0].replace(/\./g, " ");
   const displayName = name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   const deptColor = DEPARTMENT_COLORS[node.department] || DEPARTMENT_COLORS.Unknown;
 
-  // Find all edges connected to this node
   const connectedEdges = edges.filter(
     (e) => e.source === node.id || e.target === node.id
   ).sort((a, b) => (b.anomaly_score || 0) - (a.anomaly_score || 0));
@@ -619,13 +787,48 @@ function PersonDetail({
   const totalEmails = connectedEdges.reduce((sum, e) => sum + (e.volume || 0), 0);
   const anomalousEdges = connectedEdges.filter(e => (e.anomaly_score || 0) > 2);
 
-  // Find traces that mention this person
   const relatedTraces = traces.filter(t =>
     t.people.some(p => p.toLowerCase().includes(node.id.split("@")[0].replace(".", " ")))
   );
 
+  // Auto-load related trace if available and no active trace
+  useEffect(() => {
+    if (!activeTraceId && relatedTraces.length > 0) {
+      onSelectTrace(relatedTraces[0].trace_id);
+    }
+  }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Filter emails by search
+  const filteredEmails = emailSearch
+    ? personEmails.filter(e =>
+        (e.subject || "").toLowerCase().includes(emailSearch.toLowerCase()) ||
+        (e.from_addr || "").toLowerCase().includes(emailSearch.toLowerCase()) ||
+        (e.to_addr || "").toLowerCase().includes(emailSearch.toLowerCase())
+      )
+    : personEmails;
+
+  const handleAskQuery = async (question: string) => {
+    if (!question.trim() || !activeTraceId) return;
+    setQueryLoading(true);
+    setQueryInput("");
+    try {
+      const res = await queryPerson(activeTraceId, node.id, question, persona || "soc_analyst");
+      setQueryHistory(prev => [...prev, { q: question, a: res.answer }]);
+    } catch {
+      setQueryHistory(prev => [...prev, { q: question, a: "Failed to get a response. Please try again." }]);
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
+  const TABS: { key: PersonTab; label: string; badge?: number }[] = [
+    { key: "overview", label: "Overview" },
+    { key: "emails", label: "Emails", badge: emailsFetched ? personEmails.length : undefined },
+    { key: "ask", label: "Ask AI" },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
       {/* Header */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -660,162 +863,435 @@ function PersonDetail({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
         <StatBox label="Connections" value={connectedEdges.length} icon={<Activity style={{ width: 12, height: 12 }} />} />
         <StatBox label="Emails" value={totalEmails} icon={<Mail style={{ width: 12, height: 12 }} />} />
-        <StatBox label="Anomalous" value={anomalousEdges.length} color="var(--accent-red)" icon={<AlertTriangle style={{ width: 12, height: 12 }} />} />
+        <StatBox label="Anomalous" value={anomalousEdges.length} color={anomalousEdges.length > 0 ? "var(--accent-red)" : undefined} icon={<AlertTriangle style={{ width: 12, height: 12 }} />} />
       </div>
 
-      {/* Behavioral Trends */}
-      {anomalousEdges.length > 0 && (
-        <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em" }}>
-            Behavioral Indicators
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {anomalousEdges.length > 0 && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
-                background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+      {/* Tab Bar */}
+      <div style={{
+        display: "flex", borderBottom: "1px solid var(--border)", padding: "0 12px",
+      }}>
+        {TABS.map(({ key, label, badge }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            style={{
+              padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+              background: "none", border: "none", borderBottom: `2px solid ${activeTab === key ? "var(--accent-blue)" : "transparent"}`,
+              color: activeTab === key ? "var(--accent-blue)" : "var(--text-muted)",
+              transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {label}
+            {badge !== undefined && (
+              <span style={{
+                fontSize: 9, padding: "0 4px", borderRadius: 3, minWidth: 16, textAlign: "center",
+                background: activeTab === key ? "rgba(59,130,246,0.15)" : "var(--bg-card)",
+                color: activeTab === key ? "var(--accent-blue)" : "var(--text-muted)",
               }}>
-                <AlertTriangle style={{ width: 12, height: 12, color: "var(--accent-red)", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                  <b>{anomalousEdges.length}</b> anomalous communication {anomalousEdges.length === 1 ? "link" : "links"} detected
-                  {anomalousEdges[0] && (
-                    <> (highest score: {(anomalousEdges[0].anomaly_score || 0).toFixed(1)})</>
-                  )}
-                </span>
-              </div>
+                {badge}
+              </span>
             )}
-            {totalEmails > 50 && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
-                background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
-              }}>
-                <BarChart3 style={{ width: 12, height: 12, color: "var(--accent-amber, #f59e0b)", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                  High email volume: <b>{totalEmails}</b> total emails across {connectedEdges.length} connections
-                </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Overview Tab ── */}
+      {activeTab === "overview" && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {/* Behavioral Indicators */}
+          {anomalousEdges.length > 0 && (
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em" }}>
+                Behavioral Indicators
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                  background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+                }}>
+                  <AlertTriangle style={{ width: 12, height: 12, color: "var(--accent-red)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                    <b>{anomalousEdges.length}</b> anomalous communication {anomalousEdges.length === 1 ? "link" : "links"} detected
+                    {anomalousEdges[0] && (
+                      <> (highest score: {(anomalousEdges[0].anomaly_score || 0).toFixed(1)})</>
+                    )}
+                  </span>
+                </div>
+                {totalEmails > 50 && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                    background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
+                  }}>
+                    <BarChart3 style={{ width: 12, height: 12, color: "var(--accent-amber, #f59e0b)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                      High email volume: <b>{totalEmails}</b> total emails across {connectedEdges.length} connections
+                    </span>
+                  </div>
+                )}
+                {connectedEdges.length > 0 && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                    background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+                  }}>
+                    <Activity style={{ width: 12, height: 12, color: "var(--accent-blue)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                      Top contact: <b>
+                        {(() => {
+                          const topEdge = connectedEdges[0];
+                          const otherId = topEdge.source === node.id ? topEdge.target : topEdge.source;
+                          return otherId.split("@")[0].replace(/\./g, " ").split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                        })()}
+                      </b> ({connectedEdges[0].volume || 0} emails)
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-            {connectedEdges.length > 0 && (
+            </div>
+          )}
+
+          {/* AI Explanation */}
+          {(explanation || loadingExplanation) && (
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}>
+                <Brain style={{ width: 12, height: 12 }} />
+                AI Explanation
+                {persona && persona !== "soc_analyst" && (
+                  <span style={{ fontSize: 9, fontWeight: 500, color: "var(--text-muted)", textTransform: "capitalize", letterSpacing: 0 }}>
+                    ({persona.replace(/_/g, " ")})
+                  </span>
+                )}
+              </h3>
+              {loadingExplanation ? (
+                <div className="skeleton" style={{ height: 60, borderRadius: 6 }} />
+              ) : explanation ? (
+                <div style={{
+                  padding: 10, borderRadius: 6,
+                  background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+                }}>
+                  <p style={{
+                    fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0,
+                    whiteSpace: "pre-wrap",
+                  }}>
+                    {explanation.replace(/\*\*/g, "")}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* No trace message */}
+          {!activeTraceId && relatedTraces.length === 0 && (
+            <div style={{ padding: "12px 16px" }}>
               <div style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 6,
+                padding: 12, borderRadius: 6, textAlign: "center",
                 background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
               }}>
-                <Activity style={{ width: 12, height: 12, color: "var(--accent-blue)", flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                  Top contact: <b>
-                    {(() => {
-                      const topEdge = connectedEdges[0];
-                      const otherId = topEdge.source === node.id ? topEdge.target : topEdge.source;
-                      return otherId.split("@")[0].replace(/\./g, " ").split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-                    })()}
-                  </b> ({connectedEdges[0].volume || 0} emails)
-                </span>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
+                  Run analysis with this employee selected to generate a reasoning trace.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* View Reasoning Trace button */}
+          {!activeTraceId && relatedTraces.length > 0 && (
+            <div style={{ padding: "8px 16px" }}>
+              <button
+                onClick={() => onSelectTrace(relatedTraces[0].trace_id)}
+                style={{
+                  width: "100%", padding: "8px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", background: "rgba(59,130,246,0.08)", color: "var(--accent-blue)",
+                  border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center",
+                  justifyContent: "center", gap: 6,
+                }}
+              >
+                <Brain style={{ width: 12, height: 12 }} />
+                View Reasoning Trace
+              </button>
+            </div>
+          )}
+
+          {/* Communications */}
+          <div style={{ padding: 12 }}>
+            <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em" }}>
+              Communications ({connectedEdges.length})
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {connectedEdges.map((edge, i) => {
+                const otherId = edge.source === node.id ? edge.target : edge.source;
+                const otherNode = nodes.find(n => n.id === otherId);
+                const otherName = (otherNode?.name || otherId.split("@")[0]).replace(/\./g, " ");
+                const otherDisplay = otherName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                const isAnomalous = (edge.anomaly_score || 0) > 2;
+                const otherDept = otherNode?.department || "Unknown";
+                const otherColor = DEPARTMENT_COLORS[otherDept] || DEPARTMENT_COLORS.Unknown;
+
+                return (
+                  <button
+                    key={`${edge.source}-${edge.target}-${i}`}
+                    onClick={() => onViewEdge(edge.source, edge.target)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "8px 10px", borderRadius: 6, cursor: "pointer", width: "100%",
+                      background: isAnomalous ? "rgba(239,68,68,0.06)" : "var(--bg-card)",
+                      border: `1px solid ${isAnomalous ? "rgba(239,68,68,0.2)" : "var(--border)"}`,
+                      transition: "all 0.15s", textAlign: "left",
+                      color: "var(--text-primary)",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = isAnomalous ? "rgba(239,68,68,0.4)" : "var(--accent-blue)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = isAnomalous ? "rgba(239,68,68,0.2)" : "var(--border)"; }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: otherColor, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 500 }}>{otherDisplay}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{otherDept}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{edge.volume || 0} emails</span>
+                      {isAnomalous && (
+                        <span style={{
+                          fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                          background: "rgba(239,68,68,0.15)", color: "var(--accent-red)", fontWeight: 600,
+                        }}>
+                          {(edge.anomaly_score || 0).toFixed(1)}
+                        </span>
+                      )}
+                      <ArrowRight style={{ width: 10, height: 10, color: "var(--text-muted)" }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {relatedTraces.length > 0 && (
+              <>
+                <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginTop: 16, marginBottom: 8, letterSpacing: "0.04em" }}>
+                  Related Analysis Traces
+                </h3>
+                {relatedTraces.map((trace) => (
+                  <TraceCard key={trace.trace_id} trace={trace} onClick={() => onSelectTrace(trace.trace_id)} />
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Emails Tab ── */}
+      {activeTab === "emails" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Search */}
+          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "5px 8px", borderRadius: 6,
+              background: "var(--bg-card)", border: "1px solid var(--border)",
+            }}>
+              <Search style={{ width: 12, height: 12, color: "var(--text-muted)", flexShrink: 0 }} />
+              <input
+                type="text"
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                placeholder="Filter by subject or contact..."
+                style={{
+                  flex: 1, background: "none", border: "none", outline: "none",
+                  fontSize: 11, color: "var(--text-primary)", padding: 0,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Email list */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+            {emailsLoading ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8 }}>
+                {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 60, borderRadius: 6 }} />)}
+              </div>
+            ) : filteredEmails.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 11 }}>
+                {emailSearch ? "No emails match your search" : "No emails found for this person"}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {filteredEmails.map((email, i) => {
+                  const isExpanded = expandedEmail === email.message_id;
+                  const vaderScore = email.vader_compound ?? 0;
+                  const sentimentColor = vaderScore > 0.3 ? "var(--accent-green)" : vaderScore < -0.3 ? "var(--accent-red)" : "var(--accent-amber)";
+                  return (
+                    <div key={email.message_id || i}>
+                      <button
+                        onClick={() => setExpandedEmail(isExpanded ? null : email.message_id)}
+                        style={{
+                          display: "flex", alignItems: "flex-start", gap: 8, width: "100%",
+                          padding: "8px 10px", borderRadius: 6, cursor: "pointer",
+                          background: "var(--bg-card)",
+                          border: `1px solid ${email.threat_category ? "rgba(239,68,68,0.2)" : "var(--border)"}`,
+                          transition: "all 0.15s", textAlign: "left", color: "var(--text-primary)",
+                        }}
+                      >
+                        {isExpanded
+                          ? <ChevronDown style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0, color: "var(--text-muted)" }} />
+                          : <ChevronRight style={{ width: 12, height: 12, marginTop: 2, flexShrink: 0, color: "var(--text-muted)" }} />
+                        }
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {email.subject || "(no subject)"}
+                          </div>
+                          <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                            <span>{email.from_addr?.split("@")[0]} → {email.to_addr?.split("@")[0]}</span>
+                            <span>{email.date?.slice(0, 10)}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                          <div style={{
+                            width: 32, height: 4, borderRadius: 2, background: "var(--bg-hover)",
+                            overflow: "hidden",
+                          }}>
+                            <div style={{
+                              width: `${Math.abs(vaderScore) * 100}%`, height: "100%",
+                              background: sentimentColor, borderRadius: 2,
+                            }} />
+                          </div>
+                          {email.threat_category && (
+                            <span style={{
+                              fontSize: 8, padding: "1px 4px", borderRadius: 3,
+                              background: "rgba(239,68,68,0.12)", color: "var(--accent-red)", fontWeight: 600,
+                            }}>
+                              {email.threat_category.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      {isExpanded && email.body && (
+                        <div style={{
+                          margin: "0 0 4px 20px", padding: 10, borderRadius: "0 0 6px 6px",
+                          background: "var(--bg-secondary)", border: "1px solid var(--border)", borderTop: "none",
+                          fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.6,
+                          maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap",
+                        }}>
+                          {email.body.slice(0, 1000)}{email.body.length > 1000 ? "..." : ""}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* AI Explanation */}
-      {(explanation || loadingExplanation) && (
-        <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-blue)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 6 }}>
-            <Brain style={{ width: 12, height: 12 }} />
-            AI Explanation
-            {persona && persona !== "soc_analyst" && (
-              <span style={{ fontSize: 9, fontWeight: 500, color: "var(--text-muted)", textTransform: "capitalize", letterSpacing: 0 }}>
-                ({persona.replace(/_/g, " ")})
-              </span>
-            )}
-          </h3>
-          {loadingExplanation ? (
-            <div className="skeleton" style={{ height: 60, borderRadius: 6 }} />
-          ) : explanation ? (
+      {/* ── Ask AI Tab ── */}
+      {activeTab === "ask" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {!activeTraceId ? (
             <div style={{
-              padding: 10, borderRadius: 6,
-              background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+              flexDirection: "column", gap: 8, padding: 24,
             }}>
-              <p style={{
-                fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0,
-                whiteSpace: "pre-wrap",
-              }}>
-                {explanation.replace(/\*\*/g, "")}
+              <Brain style={{ width: 28, height: 28, color: "var(--text-muted)", opacity: 0.3 }} />
+              <p style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.6 }}>
+                Run analysis first to enable AI queries about this person.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <>
+              {/* Suggested questions */}
+              {queryHistory.length === 0 && (
+                <div style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {[
+                    "Why was this person flagged?",
+                    "What keywords triggered alerts?",
+                    "Summarize communication patterns",
+                  ].map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => handleAskQuery(q)}
+                      disabled={queryLoading}
+                      style={{
+                        padding: "4px 10px", borderRadius: 12, fontSize: 10,
+                        background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)",
+                        color: "var(--accent-blue)", cursor: "pointer", fontWeight: 500,
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Chat history */}
+              <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                {queryHistory.map((entry, i) => (
+                  <div key={i}>
+                    <div style={{
+                      padding: "6px 10px", borderRadius: 8, marginBottom: 6,
+                      background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)",
+                      fontSize: 11, color: "var(--text-primary)", fontWeight: 500,
+                    }}>
+                      {entry.q}
+                    </div>
+                    <div style={{
+                      padding: 10, borderRadius: 8,
+                      background: "var(--bg-card)", border: "1px solid var(--border)",
+                      fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                    }}>
+                      {entry.a.replace(/\*\*/g, "")}
+                    </div>
+                  </div>
+                ))}
+                {queryLoading && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: 10,
+                    color: "var(--text-muted)", fontSize: 11,
+                  }}>
+                    <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                    Analyzing...
+                  </div>
+                )}
+              </div>
+
+              {/* Input */}
+              <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)" }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 8px", borderRadius: 8,
+                  background: "var(--bg-card)", border: "1px solid var(--border)",
+                }}>
+                  <input
+                    type="text"
+                    value={queryInput}
+                    onChange={(e) => setQueryInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskQuery(queryInput); } }}
+                    placeholder="Ask about this person..."
+                    disabled={queryLoading}
+                    style={{
+                      flex: 1, background: "none", border: "none", outline: "none",
+                      fontSize: 11, color: "var(--text-primary)", padding: 0,
+                    }}
+                  />
+                  <button
+                    onClick={() => handleAskQuery(queryInput)}
+                    disabled={!queryInput.trim() || queryLoading}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 24, height: 24, borderRadius: 6, cursor: "pointer",
+                      background: queryInput.trim() ? "var(--accent-blue)" : "var(--bg-hover)",
+                      border: "none", color: queryInput.trim() ? "white" : "var(--text-muted)",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <Send style={{ width: 12, height: 12 }} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
-
-      {/* Connected people */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.04em" }}>
-          Communications ({connectedEdges.length})
-        </h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {connectedEdges.map((edge, i) => {
-            const otherId = edge.source === node.id ? edge.target : edge.source;
-            const otherNode = nodes.find(n => n.id === otherId);
-            const otherName = (otherNode?.name || otherId.split("@")[0]).replace(/\./g, " ");
-            const otherDisplay = otherName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-            const isAnomalous = (edge.anomaly_score || 0) > 2;
-            const otherDept = otherNode?.department || "Unknown";
-            const otherColor = DEPARTMENT_COLORS[otherDept] || DEPARTMENT_COLORS.Unknown;
-
-            return (
-              <button
-                key={`${edge.source}-${edge.target}-${i}`}
-                onClick={() => onViewEdge(edge.source, edge.target)}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "8px 10px", borderRadius: 6, cursor: "pointer", width: "100%",
-                  background: isAnomalous ? "rgba(239,68,68,0.06)" : "var(--bg-card)",
-                  border: `1px solid ${isAnomalous ? "rgba(239,68,68,0.2)" : "var(--border)"}`,
-                  transition: "all 0.15s", textAlign: "left",
-                  color: "var(--text-primary)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = isAnomalous ? "rgba(239,68,68,0.4)" : "var(--accent-blue)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = isAnomalous ? "rgba(239,68,68,0.2)" : "var(--border)"; }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{
-                    width: 6, height: 6, borderRadius: "50%", background: otherColor, flexShrink: 0,
-                  }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>{otherDisplay}</div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{otherDept}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-                    {edge.volume || 0} emails
-                  </span>
-                  {isAnomalous && (
-                    <span style={{
-                      fontSize: 9, padding: "1px 5px", borderRadius: 3,
-                      background: "rgba(239,68,68,0.15)", color: "var(--accent-red)", fontWeight: 600,
-                    }}>
-                      {(edge.anomaly_score || 0).toFixed(1)}
-                    </span>
-                  )}
-                  <ArrowRight style={{ width: 10, height: 10, color: "var(--text-muted)" }} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Related traces */}
-        {relatedTraces.length > 0 && (
-          <>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginTop: 16, marginBottom: 8, letterSpacing: "0.04em" }}>
-              Related Analysis Traces
-            </h3>
-            {relatedTraces.map((trace) => (
-              <TraceCard key={trace.trace_id} trace={trace} onClick={() => onSelectTrace(trace.trace_id)} />
-            ))}
-          </>
-        )}
-      </div>
     </div>
   );
 }
@@ -853,7 +1329,7 @@ function EdgeDetail({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", overflowX: "hidden" }}>
       {/* Header */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>

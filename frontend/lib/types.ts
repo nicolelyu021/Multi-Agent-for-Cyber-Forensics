@@ -7,6 +7,7 @@ export interface GraphNode {
   suspicion_score?: number;
   x?: number;
   y?: number;
+  z?: number;
 }
 
 export interface GraphEdge {
@@ -14,6 +15,7 @@ export interface GraphEdge {
   target: string;
   volume: number;
   anomaly_score: number;
+  threat_count?: number;
 }
 
 export interface GraphSnapshot {

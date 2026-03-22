@@ -1,9 +1,15 @@
 "use client";
-import { useState } from "react";
-import { startAnalysis, pollAnalysisUntilDone } from "@/lib/api";
+import { useState, useEffect, useRef } from "react";
+import { startAnalysis, pollAnalysisUntilDone, searchEmployees } from "@/lib/api";
 import { THREAT_COLORS, DEPARTMENT_COLORS } from "@/lib/constants";
 import type { ThreatCategory } from "@/lib/types";
-import { Play, Loader2, Scan, CheckCircle, XCircle } from "lucide-react";
+import { Play, Loader2, Scan, CheckCircle, XCircle, Search, X } from "lucide-react";
+
+export interface SelectedEmployee {
+  id: string;
+  name: string;
+  department: string;
+}
 
 interface FilterPanelProps {
   department: string;
@@ -11,6 +17,8 @@ interface FilterPanelProps {
   threats: ThreatCategory[];
   onThreatsChange: (t: ThreatCategory[]) => void;
   onRunAnalysis: (traceId: string | null, result?: any) => void;
+  selectedEmployees: SelectedEmployee[];
+  onEmployeesChange: (employees: SelectedEmployee[]) => void;
 }
 
 const DEPARTMENTS = ["Executive", "Finance", "Accounting", "Legal", "Trading", "Research"];
@@ -22,15 +30,69 @@ const THREAT_TYPES: { key: ThreatCategory; label: string }[] = [
 
 export function FilterPanel({
   department, onDepartmentChange, threats, onThreatsChange, onRunAnalysis,
+  selectedEmployees, onEmployeesChange,
 }: FilterPanelProps) {
   const [analysisStatus, setAnalysisStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const [analysisStage, setAnalysisStage] = useState(0); // 0-4 progress stages
+  const [analysisStage, setAnalysisStage] = useState(0);
   const [startDate, setStartDate] = useState("2000-10-01");
   const [endDate, setEndDate] = useState("2001-12-31");
 
+  // Employee search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SelectedEmployee[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const results = await searchEmployees(searchQuery);
+        // Filter out already-selected employees
+        const selectedIds = new Set(selectedEmployees.map(e => e.id));
+        setSearchResults(results.filter(r => !selectedIds.has(r.id)));
+        setShowDropdown(true);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, selectedEmployees]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const addEmployee = (emp: SelectedEmployee) => {
+    onEmployeesChange([...selectedEmployees, emp]);
+    setSearchQuery("");
+    setShowDropdown(false);
+  };
+
+  const removeEmployee = (id: string) => {
+    onEmployeesChange(selectedEmployees.filter(e => e.id !== id));
+  };
+
   const toggleThreat = (t: ThreatCategory) => {
-    // Radio-style: clicking the same one deselects, clicking a new one selects just that
     onThreatsChange(threats.includes(t) ? [] : [t]);
   };
 
@@ -47,14 +109,18 @@ export function FilterPanel({
     setAnalysisStage(0);
     setStatusMessage(ANALYSIS_STAGES[0].label);
     try {
-      const { run_id } = await startAnalysis({ start_date: startDate, end_date: endDate });
+      const { run_id } = await startAnalysis({
+        start_date: startDate,
+        end_date: endDate,
+        departments: department ? [department] : undefined,
+        person_emails: selectedEmployees.length > 0 ? selectedEmployees.map(e => e.id) : undefined,
+      });
       setAnalysisStage(1);
       setStatusMessage(ANALYSIS_STAGES[1].label);
 
       let pollCount = 0;
       const results = await pollAnalysisUntilDone(run_id, (status) => {
         pollCount++;
-        // Advance stage every ~3 polls to simulate progress through pipeline
         const stage = Math.min(Math.floor(pollCount / 3) + 1, ANALYSIS_STAGES.length - 1);
         setAnalysisStage(stage);
         setStatusMessage(
@@ -97,6 +163,122 @@ export function FilterPanel({
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
         </div>
+      </div>
+
+      {/* Employee Search */}
+      <div ref={searchRef} style={{ position: "relative" }}>
+        <div className="section-label">Filter by Employee</div>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "6px 8px", borderRadius: 6,
+          background: "var(--bg-card)", border: "1px solid var(--border)",
+        }}>
+          <Search style={{ width: 12, height: 12, color: "var(--text-muted)", flexShrink: 0 }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => { if (searchResults.length > 0) setShowDropdown(true); }}
+            placeholder="Search by name or email..."
+            style={{
+              flex: 1, background: "none", border: "none", outline: "none",
+              fontSize: 11, color: "var(--text-primary)",
+              padding: 0,
+            }}
+          />
+          {searchLoading && <Loader2 style={{ width: 12, height: 12, animation: "spin 1s linear infinite", color: "var(--text-muted)" }} />}
+        </div>
+
+        {/* Dropdown results */}
+        {showDropdown && searchResults.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+            marginTop: 4, borderRadius: 6, overflow: "hidden",
+            background: "var(--bg-secondary)", border: "1px solid var(--border)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+            maxHeight: 200, overflowY: "auto",
+          }}>
+            {searchResults.map((r) => {
+              const deptColor = DEPARTMENT_COLORS[r.department] || DEPARTMENT_COLORS.Unknown;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => addEmployee(r)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%",
+                    padding: "8px 10px", cursor: "pointer", textAlign: "left",
+                    background: "none", border: "none", borderBottom: "1px solid var(--border-subtle)",
+                    color: "var(--text-primary)", transition: "background 0.1s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: deptColor, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.name}
+                    </div>
+                    <div style={{ fontSize: 9, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.id}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: 8, padding: "1px 5px", borderRadius: 3,
+                    background: `${deptColor}18`, color: deptColor, fontWeight: 600,
+                  }}>
+                    {r.department}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Selected employee chips */}
+        {selectedEmployees.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+            {selectedEmployees.map((emp) => {
+              const deptColor = DEPARTMENT_COLORS[emp.department] || DEPARTMENT_COLORS.Unknown;
+              return (
+                <span
+                  key={emp.id}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "3px 6px 3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 500,
+                    background: `${deptColor}15`, border: `1px solid ${deptColor}30`,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: deptColor }} />
+                  {emp.name}
+                  <button
+                    onClick={() => removeEmployee(emp.id)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 14, height: 14, borderRadius: 3, cursor: "pointer",
+                      background: "none", border: "none", color: "var(--text-muted)",
+                      padding: 0,
+                    }}
+                  >
+                    <X style={{ width: 10, height: 10 }} />
+                  </button>
+                </span>
+              );
+            })}
+            {selectedEmployees.length >= 2 && (
+              <button
+                onClick={() => onEmployeesChange([])}
+                style={{
+                  fontSize: 9, color: "var(--text-muted)", background: "none",
+                  border: "none", cursor: "pointer", textDecoration: "underline",
+                  padding: "2px 4px",
+                }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Department */}
@@ -210,25 +392,14 @@ export function FilterPanel({
               </div>
 
               {/* Stage dots */}
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
                 {ANALYSIS_STAGES.map((stage, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 3, flex: 1,
-                  }}>
-                    <div style={{
-                      width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                      background: i <= analysisStage ? ["#3b82f6", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444"][i] : "rgba(125,133,144,0.3)",
-                      transition: "background 0.3s",
-                      boxShadow: i === analysisStage ? `0 0 6px ${["#3b82f6", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444"][i]}60` : "none",
-                    }} />
-                    <span style={{
-                      fontSize: 8, fontWeight: i <= analysisStage ? 600 : 400,
-                      color: i <= analysisStage ? "var(--text-secondary)" : "var(--text-muted)",
-                      transition: "all 0.3s",
-                    }}>
-                      {stage.short}
-                    </span>
-                  </div>
+                  <div key={i} title={stage.short} style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: i <= analysisStage ? ["#3b82f6", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444"][i] : "rgba(125,133,144,0.3)",
+                    transition: "background 0.3s",
+                    boxShadow: i === analysisStage ? `0 0 8px ${["#3b82f6", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444"][i]}60` : "none",
+                  }} />
                 ))}
               </div>
             </div>

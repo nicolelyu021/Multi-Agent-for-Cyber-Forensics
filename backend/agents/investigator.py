@@ -15,6 +15,7 @@ from config import settings
 from agents.state import ThreatAnalysisState
 from agents.tools.neo4j_queries import (
     detect_anomalies,
+    detect_threat_emails,
     get_communication_volume,
     get_emails_between,
 )
@@ -54,8 +55,36 @@ async def investigator_node(state: ThreatAnalysisState) -> dict:
         start_date=state["start_date"],
         end_date=state["end_date"],
         threshold=state["anomaly_threshold"],
+        person_emails=state.get("person_emails"),
+        departments=state.get("departments"),
         trace_id=trace_id,
     )
+
+    # Step 1b: Content-based threat scan (catches threats missed by volume analysis)
+    threat_edges = await detect_threat_emails(
+        start_date=state["start_date"],
+        end_date=state["end_date"],
+        person_emails=state.get("person_emails"),
+        departments=state.get("departments"),
+        trace_id=trace_id,
+    )
+
+    # Merge threat edges not already found by structural analysis
+    existing_pairs = {(a["source"], a["target"]) for a in anomalies}
+    for te in threat_edges:
+        if (te["source"], te["target"]) not in existing_pairs:
+            anomalies.append({
+                "source": te["source"],
+                "target": te["target"],
+                "recent_volume": te.get("total_volume", 0),
+                "baseline": 0,
+                "anomaly_score": max(
+                    float(te.get("anomaly_score", 1.0)),
+                    2.0 + float(te.get("threat_volume", 0)) * 0.3,
+                ),
+                "total_volume": te.get("total_volume", 0),
+            })
+            existing_pairs.add((te["source"], te["target"]))
 
     if not anomalies:
         return {
@@ -78,7 +107,7 @@ async def investigator_node(state: ThreatAnalysisState) -> dict:
     # Step 3: Get emails for the top anomalous edges
     email_ids = []
     anomalous_edges = []
-    for anomaly in anomalies[:10]:  # Top 10 anomalies
+    for anomaly in anomalies[:5]:  # Top 5 anomalies
         emails = await get_emails_between(
             source=anomaly["source"],
             target=anomaly["target"],

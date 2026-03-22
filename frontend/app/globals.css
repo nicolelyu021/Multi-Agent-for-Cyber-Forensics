@@ -10,7 +10,8 @@
   padding: 0;
 }
 
-:root {
+:root,
+[data-theme="dark"] {
   --bg-primary: #0b0e11;
   --bg-secondary: #0f1318;
   --bg-card: #161b22;
@@ -26,6 +27,34 @@
   --accent-green: #22c55e;
   --accent-purple: #a855f7;
   --accent-cyan: #06b6d4;
+  --graph-bg: #0b0e11;
+  --node-label-color: rgba(210, 218, 226, 0.85);
+  --tooltip-bg: rgba(22, 27, 34, 0.95);
+  --tooltip-border: rgba(48, 54, 61, 0.8);
+  --calendar-filter: invert(0.6);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f2f5;
+  --border: #d8dde4;
+  --border-subtle: #e4e8ed;
+  --text-primary: #1a1d21;
+  --text-secondary: #57606a;
+  --text-muted: #8b949e;
+  --accent-blue: #2563eb;
+  --accent-red: #dc2626;
+  --accent-amber: #d97706;
+  --accent-green: #16a34a;
+  --accent-purple: #9333ea;
+  --accent-cyan: #0891b2;
+  --graph-bg: #f0f2f5;
+  --node-label-color: rgba(26, 29, 33, 0.85);
+  --tooltip-bg: rgba(255, 255, 255, 0.95);
+  --tooltip-border: rgba(216, 221, 228, 0.8);
+  --calendar-filter: none;
 }
 
 html, body {
@@ -68,14 +97,14 @@ html, body {
 
 .panel-left {
   width: 240px;
-  min-width: 240px;
-  max-width: 240px;
+  min-width: 48px;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   overflow-x: hidden;
+  flex-shrink: 0;
 }
 
 .panel-center {
@@ -88,14 +117,14 @@ html, body {
 
 .panel-right {
   width: 340px;
-  min-width: 340px;
-  max-width: 340px;
+  min-width: 48px;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border);
   overflow-y: auto;
   overflow-x: hidden;
+  flex-shrink: 0;
 }
 
 .graph-container {
@@ -116,28 +145,28 @@ html, body {
   border-top: 1px solid var(--border);
 }
 
-/* ── Icon Sidebar ── */
+/* ── Icon Sidebar (Groww Terminal style) ── */
 .icon-sidebar {
-  width: 44px;
-  min-width: 44px;
+  width: 58px;
+  min-width: 58px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 12px;
-  gap: 4px;
+  padding-top: 8px;
+  gap: 2px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border);
 }
 
 .icon-sidebar-btn {
-  width: 36px;
-  height: 36px;
+  width: 52px;
+  height: 46px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -145,7 +174,8 @@ html, body {
   transition: all 0.15s;
   font-size: 8px;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  line-height: 1;
 }
 
 .icon-sidebar-btn:hover {
@@ -184,7 +214,7 @@ select:focus {
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6);
+  filter: var(--calendar-filter);
 }
 
 /* ── Range Slider ── */

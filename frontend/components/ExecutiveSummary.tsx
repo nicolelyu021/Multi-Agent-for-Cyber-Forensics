@@ -9,11 +9,12 @@ interface ExecutiveSummaryProps {
   confidence: number;
   threatCategory: string;
   people: string[];
+  summary?: string;
   onExport: () => void;
 }
 
 export function ExecutiveSummary({
-  records, traceId, confidence, threatCategory, people, onExport,
+  records, traceId, confidence, threatCategory, people, summary, onExport,
 }: ExecutiveSummaryProps) {
   const severity = confidence >= 0.7 ? "HIGH" : confidence >= 0.4 ? "MODERATE" : "LOW";
   const sevColor = severity === "HIGH" ? "var(--accent-red)" : severity === "MODERATE" ? "var(--accent-amber, #f59e0b)" : "var(--accent-green)";
@@ -62,13 +63,19 @@ export function ExecutiveSummary({
         </h3>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {summary && (
+            <FindingCard
+              label="Summary"
+              value={summary}
+            />
+          )}
           <FindingCard
             label="People of Interest"
-            value={people.length > 0 ? people.slice(0, 4).join(", ") + (people.length > 4 ? ` +${people.length - 4} more` : "") : "None identified"}
+            value={people.length > 0 ? people.slice(0, 6).join(", ") + (people.length > 6 ? ` +${people.length - 6} more` : "") : "None identified"}
           />
           <FindingCard
             label="AI Analysis"
-            value={`${agentCount} AI agents analyzed the data${hasDeliberation ? " (agents disagreed and resolved via deliberation)" : " (agents reached consensus)"}`}
+            value={`${agentCount} AI agents analyzed the data${hasDeliberation ? " — agents disagreed and resolved via multi-agent deliberation" : " — agents reached consensus"}. ${records.filter(r => r.event_type === "tool_call").length} tool calls executed.`}
           />
           <FindingCard
             label="Human Oversight"
