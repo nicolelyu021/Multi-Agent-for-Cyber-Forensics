@@ -1,3 +1,7 @@
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agents*", "api*", "db*", "forensic*", "integrations*"]
+
 [project]
 name = "enron-threat-analysis"
 version = "0.1.0"
