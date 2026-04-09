@@ -7,8 +7,12 @@ from datetime import datetime
 from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
 
-RAW_DIR = Path(__file__).parent.parent / "raw" / "maildir"
 OUTPUT_DIR = Path(__file__).parent.parent
+
+RAW_DIR = OUTPUT_DIR / "raw" / "enron_mail_20110402" / "maildir"
+if not RAW_DIR.exists():
+    RAW_DIR = OUTPUT_DIR / "raw" / "maildir"  # fallback
+
 PERSONS_CSV = OUTPUT_DIR / "persons.csv"
 EMAILS_CSV = OUTPUT_DIR / "emails.csv"
 SENT_CSV = OUTPUT_DIR / "sent_rels.csv"

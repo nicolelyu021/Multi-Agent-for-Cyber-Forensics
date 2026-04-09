@@ -34,6 +34,15 @@ seed:
 # Full data pipeline
 data-pipeline: download parse import seed
 
+# De-identified data pipeline
+deidentify:
+	source backend/.venv/bin/activate && python data/scripts/prepare_deidentified.py
+
+import-deidentified:
+	source backend/.venv/bin/activate && python data/scripts/import_neo4j.py --deidentified
+
+data-pipeline-deidentified: download parse deidentify import-deidentified
+
 clean:
 	docker compose down -v
 	rm -f backend/forensic.db

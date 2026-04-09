@@ -31,7 +31,7 @@ def get_department(email_addr: str) -> str:
     return "Unknown"
 
 
-def import_data():
+def import_data(deidentified=False):
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
     with driver.session() as session:
@@ -43,9 +43,10 @@ def import_data():
 
         # Import persons
         print("Importing persons...")
-        persons_file = DATA_DIR / "persons.csv"
+        prefix = "deidentified_" if deidentified else ""
+        persons_file = DATA_DIR / f"{prefix}persons.csv"
         if not persons_file.exists():
-            print("persons.csv not found. Run parse_maildir.py first.")
+            print(f"{persons_file.name} not found. Run prepare_deidentified.py first." if deidentified else "persons.csv not found. Run parse_maildir.py first.")
             return
 
         with open(persons_file) as f:
@@ -74,7 +75,7 @@ def import_data():
 
         # Import emails
         print("Importing emails...")
-        emails_file = DATA_DIR / "emails.csv"
+        emails_file = DATA_DIR / f"{prefix}emails.csv"
         with open(emails_file) as f:
             reader = csv.DictReader(f)
             batch = []
@@ -108,7 +109,7 @@ def import_data():
 
         # Import SENT relationships
         print("Importing SENT relationships...")
-        sent_file = DATA_DIR / "sent_rels.csv"
+        sent_file = DATA_DIR / f"{prefix}sent_rels.csv"
         with open(sent_file) as f:
             reader = csv.DictReader(f)
             batch = []
@@ -135,7 +136,7 @@ def import_data():
 
         # Import RECEIVED relationships
         print("Importing RECEIVED relationships...")
-        received_file = DATA_DIR / "received_rels.csv"
+        received_file = DATA_DIR / f"{prefix}received_rels.csv"
         with open(received_file) as f:
             reader = csv.DictReader(f)
             batch = []
@@ -187,4 +188,5 @@ def import_data():
 
 
 if __name__ == "__main__":
-    import_data()
+    use_deid = "--deidentified" in sys.argv
+    import_data(deidentified=use_deid)

@@ -408,8 +408,11 @@ make backend      # Start FastAPI (assumes venv exists)
 make frontend     # Start Next.js dev server
 make seed         # Re-seed Neo4j with demo data
 make data-pipeline  # Full ETL: download → parse → import → seed
+make data-pipeline-deidentified # Full ETL with True Metadata Anonymization mapping
 make clean        # Tear down Neo4j volumes + delete forensic DB
 ```
+
+See [docs/deidentification_pipeline.md](docs/deidentification_pipeline.md) for more details on how the real data is loaded and de-identified while preserving graph topology.
 
 ---
 
