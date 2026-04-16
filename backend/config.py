@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o"
     openai_base_url: str = "https://ai-gateway.andrew.cmu.edu"  # CMU LiteLLM proxy
 
+    # Anthropic
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-opus-4-7"
+
     # Neo4j
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"

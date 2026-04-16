@@ -2,7 +2,7 @@
 import json
 import uuid
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
@@ -13,10 +13,9 @@ from api.ws_alerts import broadcast_alert
 # Import keyword map at module level (not inside function) to avoid import errors
 from agents.tools.vader_analysis import ALL_KEYWORDS
 
-llm = ChatOpenAI(
-    model=settings.openai_model,
-    api_key=settings.openai_api_key,
-    base_url=settings.openai_base_url,
+llm = ChatAnthropic(
+    model=settings.anthropic_model,
+    api_key=settings.anthropic_api_key,
     temperature=0,
 )
 

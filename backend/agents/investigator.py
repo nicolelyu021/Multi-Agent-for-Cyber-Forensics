@@ -8,7 +8,7 @@ Uses Neo4j topology to detect anomalous communication patterns:
 import json
 import uuid
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
@@ -21,10 +21,9 @@ from agents.tools.neo4j_queries import (
 )
 from forensic.wrapper import forensic_agent
 
-llm = ChatOpenAI(
-    model=settings.openai_model,
-    api_key=settings.openai_api_key,
-    base_url=settings.openai_base_url,
+llm = ChatAnthropic(
+    model=settings.anthropic_model,
+    api_key=settings.anthropic_api_key,
     temperature=0,
 )
 

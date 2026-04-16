@@ -197,6 +197,30 @@ Three-panel layout with a dark SOC-analyst theme:
 
 ---
 
+## Evaluation & Ground Truth Pipeline
+
+To scientifically measure the retention of threat detection capabilities after applying privacy-preserving data anonymization, we evaluate the Multi-Agent System (MAS) against a static ground truth. 
+
+**Note for Teammates:** You do **NOT** need to run the generation scripts or use your own API tokens! The dataset and ground truth benchmark are safely committed to this repository.
+
+### Evaluative Methodology
+1. **The Grader**: Claude Opus 4.7 analyzed the *Raw Enron Text* to establish the perfect `data/claude_opus_ground_truth_2000.json`.
+2. **The Student**: The LangGraph Multi-Agent System will analyze the *De-Identified Text* (where names and PII are redacted). 
+3. **The Score**: By comparing the Student's predictions to the Grader's benchmark, we calculate Precision, Recall, and F1-Scores.
+
+### Running the Evaluation (Phase 4 & 5)
+If you wish to re-run the evaluation of the MAS against the benchmark:
+```bash
+# 1. Have the Multi-Agent System process the 2000 de-identified emails
+python3 data/scripts/batch_evaluate_mas.py
+
+# 2. Calculate final metrics against the locked ground truth
+python3 data/scripts/evaluate_metrics.py
+```
+*(The `batch_evaluate_mas.py` and `evaluate_metrics.py` scripts are currently under construction in the `eval-ground-truth` branch.)*
+
+---
+
 ## Project Structure
 
 ```

@@ -11,7 +11,7 @@ import json
 import uuid
 from datetime import datetime
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
@@ -20,10 +20,9 @@ from forensic.wrapper import forensic_agent
 from forensic.store import append_forensic_record
 from forensic.schema import ForensicRecord
 
-llm = ChatOpenAI(
-    model=settings.openai_model,
-    api_key=settings.openai_api_key,
-    base_url=settings.openai_base_url,
+llm = ChatAnthropic(
+    model=settings.anthropic_model,
+    api_key=settings.anthropic_api_key,
     temperature=0,
 )
 

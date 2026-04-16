@@ -7,7 +7,7 @@ Analyzes emails identified by the Investigator for:
 """
 import json
 
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from config import settings
@@ -16,10 +16,9 @@ from agents.tools.vader_analysis import batch_analyze_emails, scan_keywords
 from agents.tools.neo4j_queries import get_emails_between
 from forensic.wrapper import forensic_agent
 
-llm = ChatOpenAI(
-    model=settings.openai_model,
-    api_key=settings.openai_api_key,
-    base_url=settings.openai_base_url,
+llm = ChatAnthropic(
+    model=settings.anthropic_model,
+    api_key=settings.anthropic_api_key,
     temperature=0,
 )
 

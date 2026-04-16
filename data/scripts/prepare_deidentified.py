@@ -2,6 +2,7 @@
 import csv
 import random
 import re
+import json
 from pathlib import Path
 
 # Paths
@@ -15,7 +16,9 @@ DEID_EMAILS = DATA_DIR / "deidentified_emails.csv"
 DEID_PERSONS = DATA_DIR / "deidentified_persons.csv"
 DEID_SENT = DATA_DIR / "deidentified_sent_rels.csv"
 DEID_RECEIVED = DATA_DIR / "deidentified_received_rels.csv"
+DEID_RECEIVED = DATA_DIR / "deidentified_received_rels.csv"
 MAPPING_TABLE_FILE = DATA_DIR / "identity_mapping_table.csv"
+EVAL_DATASET = DATA_DIR / "evaluation_dataset.json"
 
 TARGET_EMAIL_COUNT = 2000
 random.seed(42)
@@ -141,6 +144,8 @@ def build_deidentified_subset():
 
     # 5. Process Emails (Text Scrubbing)
     print("Scrubbing Email Text...")
+    evaluation_data = []
+
     with open(RAW_EMAILS, "r") as fin, open(DEID_EMAILS, "w", newline="") as fout:
         reader = csv.DictReader(fin)
         writer = csv.DictWriter(fout, fieldnames=["message_id", "date", "subject", "body"])
@@ -148,12 +153,25 @@ def build_deidentified_subset():
         
         for row in reader:
             if row["message_id"] in selected_ids:
+                deid_subj = deidentify_text(row["subject"])
+                deid_body = deidentify_text(row["body"])
+
                 writer.writerow({
                     "message_id": row["message_id"],
                     "date": row["date"],
-                    "subject": deidentify_text(row["subject"]),
-                    "body": deidentify_text(row["body"]),
+                    "subject": deid_subj,
+                    "body": deid_body,
                 })
+
+                evaluation_data.append({
+                    "message_id": row["message_id"],
+                    "text_raw": f"Subject: {row['subject']}\n\n{row['body']}",
+                    "text_deidentified": f"Subject: {deid_subj}\n\n{deid_body}"
+                })
+
+    print("Exporting Side-by-Side Evaluation Dataset...")
+    with open(EVAL_DATASET, "w") as fout:
+        json.dump(evaluation_data, fout, indent=2)
 
     print(f"Success! {len(selected_ids)} real emails processed.")
     print(f"Topological Mapping saved to '{MAPPING_TABLE_FILE.name}'.")
