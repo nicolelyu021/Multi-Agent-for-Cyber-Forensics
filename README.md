@@ -203,10 +203,17 @@ To scientifically measure the retention of threat detection capabilities after a
 
 **Note for Teammates:** You do **NOT** need to run the generation scripts or use your own API tokens! The dataset and ground truth benchmark are safely committed to this repository.
 
-### Evaluative Methodology
-1. **The Grader**: Claude Opus 4.7 analyzed the *Raw Enron Text* to establish the perfect `data/claude_opus_ground_truth_2000.json`.
-2. **The Student**: The LangGraph Multi-Agent System will analyze the *De-Identified Text* (where names and PII are redacted). 
-3. **The Score**: By comparing the Student's predictions to the Grader's benchmark, we calculate Precision, Recall, and F1-Scores.
+### The Pipeline Phases
+The evaluation pipeline is broken down into 5 phases. Phases 1-3 are **already completed** and locked into this repository.
+
+**[COMPLETED] Phase 1: Context & Prompt Engineering**
+- Established the AI prompts, including an Enron-specific ACFE taxonomy and strict agent behavior policies.
+
+**[COMPLETED] Phase 2: Reproducible Data De-identification**
+- Exported the `evaluation_dataset.json` which maps original RAW Enron text directly to heavily redacted, PII-stripped text.
+
+**[COMPLETED] Phase 3: The Static Benchmark**
+- Used Claude Opus 4.7 to grade all 2,000 RAW emails. Because Anthropic's new models are inherently non-deterministic, we ran this exactly once. The resulting `claude_opus_ground_truth_2000.json` acts as our irreversible, static benchmark.
 
 ### Running the Evaluation (Phase 4 & 5)
 If you wish to re-run the evaluation of the MAS against the benchmark:
