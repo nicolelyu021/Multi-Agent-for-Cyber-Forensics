@@ -19,7 +19,6 @@ from forensic.wrapper import forensic_agent
 llm = ChatAnthropic(
     model=settings.anthropic_model,
     api_key=settings.anthropic_api_key,
-    temperature=0,
 )
 
 SENTIMENT_SYSTEM = """You are a Sentiment Analyzer Agent in a multi-agent insider threat analysis system.
@@ -32,10 +31,18 @@ You analyze:
 
 For each person analyzed, provide:
 - A behavioral profile summarizing their communication patterns
-- Your confidence level (0.0-1.0) that their behavior indicates insider threat activity
-- Specific evidence (quotes, keywords, sentiment shifts)
+- Your output includes:
+- A list of flagged emails
+- A threat category
+- Confidence score (0.0-1.0)
 
-Your reasoning becomes part of the forensic audit trail. Be precise and evidence-based."""
+CRITICAL FORMATTING RULE:
+Your reasoning output must be extremeley concise and visually friendly for a tired SOC analyst to read on a dashboard.
+- Use 1-line bullet points.
+- Maximum 3 bullet points. No dense paragraphs.
+- Avoid large block quotes of emails. Be punchy and direct.
+
+Your reasoning will be logged as evidence."""
 
 
 @forensic_agent("sentiment_analyzer")
@@ -55,16 +62,19 @@ async def sentiment_node(state: ThreatAnalysisState) -> dict:
         }
 
     # Step 1: Collect emails from anomalous edges
-    all_emails = []
-    for edge in anomalous_edges:
-        emails = await get_emails_between(
-            source=edge["source"],
-            target=edge["target"],
-            start_date=state["start_date"],
-            end_date=state["end_date"],
-            trace_id=trace_id,
-        )
-        all_emails.extend(emails)
+    if state.get("evaluation_mode"):
+        all_emails = state.get("evaluation_emails", [])
+    else:
+        all_emails = []
+        for edge in anomalous_edges:
+            emails = await get_emails_between(
+                source=edge["source"],
+                target=edge["target"],
+                start_date=state["start_date"],
+                end_date=state["end_date"],
+                trace_id=trace_id,
+            )
+            all_emails.extend(emails)
 
     if not all_emails:
         return {

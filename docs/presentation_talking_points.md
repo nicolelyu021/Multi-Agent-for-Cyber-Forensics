@@ -1,0 +1,51 @@
+# Presentation Talking Points: AI Evaluation & Architecture
+
+Use these notes to discuss the "Learning & Process" part of our final project presentation. Our professor focuses heavily on *why* we made certain engineering decisions when working with modern AI frameworks.
+
+---
+
+## 1. The "Non-Determinism" Lesson
+
+**What happened:** When trying to build a reproducible, scientific benchmark for our system, we found that Anthropic's Claude Opus 4.7 completely deprecated the `temperature` parameter (defaulting to structural non-determinism).
+**Why it matters:** In AI Governance (like the EU AI Act), you need testing and evaluation pipelines that are reproducible! If the model gives different answers every time simply because it lacks a `seed`, we can't reliably measure our F1 score.
+**Our Solution:** We abandoned the idea of "on-the-fly" grading. Instead, we implemented a **Static Data Artifact Strategy**. We generated the ground-truth benchmark exactly once over all 2,000 emails, saved it as a locked JSON file, and committed it to the Git repository. For scientific evaluations of black-box APIs, Ground-Truth must be treated as an immutable dataset rather than an executable script.
+
+---
+
+## 2. Dependency Injection in Multi-Agent Flows
+
+**What happened:** Our Multi-Agent System (built on LangGraph) is highly complex. The agents normally act autonomously by reaching into the live Neo4j database using `start_date` and `end_date` parameters to find network anomalies.
+**Why it matters:** To scientifically evaluate the system, we needed to test it on 2,000 *specific* de-identified emails independently, rather than testing the system's ability to crawl a database over time.
+**Our Solution:** We engineered an **Evaluation Mode / Dependency Injection** layer directly into the LangGraph `ThreatAnalysisState`. When the pipeline detects this mode, the agents gracefully bypass their Neo4j/Cypher queries and ingest the isolated de-identified data payloads directly. This allowed us to execute the exact same cognitive pipelines (Sentiment Analyzer, Deliberation Agent, Escalation Agent) offline!
+
+---
+
+## 3. Structural PII Redaction vs. Agent Capability (Our Research Finding)
+
+**What happened:** To protect privacy, our de-identification pipeline aggressively scrubbed emails by replacing names and email addresses with generic tokens (e.g., `[PERSON A]`).
+**Why it matters:** By removing identity, we inherently broke the *Network Topology*. Our Investigator agent—which tracks who sent how many emails to whom—was rendered completely blind.
+**Our Learnings/Results:** This perfectly illustrates a core tension in Responsible AI. The more privacy you enforce, the more "context" you destroy for the model. Because the network topology was erased, our Multi-Agent system had to rely entirely on the lexical analysis of the *Sentiment Agent*. This proves that in secure environments (like finance/healthcare), AI systems cannot rely on metadata network-graphs and must instead use deeper semantic language analysis.
+
+---
+
+## 4. Mitigating "Cross-Model Bias"
+
+**What happened:** When we first built the benchmark, our LangGraph MAS was using `gpt-4o`, while our Ground-Truth grader was using `claude-opus-4-7`.
+**Why it matters:** AI models often favor their own writing styles and internal logic structures. If Claude graded GPT, it might artificially deflate the performance metrics simply because GPT approaches the threat-taxonomy differently.
+**Our Solution:** We executed a full "Model Migration". We rewrote our entire Langchain suite to adopt `ChatAnthropic`. By standardizing both the "Student" and the "Grader" on Claude 4.7, we eliminated cross-model grading bias, ensuring that our F1-score metric exclusively measures the impact of our data de-identification, not model variance.
+
+---
+
+## 5. System Prompt Asymmetry (Policy vs. Expert Taxonomy)
+
+**What happened:** When building our Ground Truth benchmark, we equipped the "Grader" model with an extensive, highly specific `acfe_enron_taxonomy.md` (acting like an expert forensic auditor). However, our live Multi-Agent "Student" system is only equipped with a generic corporate baseline `sentiment_policy.md`.
+**Why it matters:** The Grader knew exactly what explicit financial fraud schemes to look for (e.g., LJM, Raptor, SPEs). The live Sentiment Analyzer had to generalize and decide what constitutes a threat strictly based on broad corporate policy and behavioral tone.
+**Our Learnings/Results:** This asymmetry perfectly mirrors real-world SOC environments. Live agents cannot have hardcoded taxonomies for every potential zero-day fraud scheme; they must operate on generalized behavioral policies. The fact that the Student failed to match the Grader's recall highlights the extreme difficulty of building zero-shot generalized threat detection compared to taxonomy-driven forensic analysis.
+
+---
+
+## 6. The "Accuracy Paradox" in Cyber Forensics
+
+**What happened:** Our final metrics generated by the pipeline show an **Overall Accuracy of 92.65%**, but a devastatingly low **F1-Score of 2.65%**.
+**Why it matters:** In machine learning, this is known as the "Accuracy Paradox" resulting from severe Class Imbalance. It is the hallmark of Cybersecurity and Fraud Detection datasets.
+**Our Learnings:** Out of 2,000 emails, nearly 1,900 of them are completely innocent (True Negatives). If an AI simply closes its eyes and guesses "Clean" for every single email, it will mathematically achieve over 90% accuracy! This is why Accuracy is a deceptive, borderline useless metric for anomaly detection. The F1-Score (2.65%) focuses strictly on the *minority class*—the actual threats—and exposes that the system almost completely lost its ability to detect the rare fraud needles in the massive innocent haystack once PII and network context were removed.

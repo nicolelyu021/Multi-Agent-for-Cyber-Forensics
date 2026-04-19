@@ -17,6 +17,7 @@ The dashboard uses `react-force-graph-3d` which runs on WebGL in the browser. Wh
 If we loaded the full 500,000 Enron dataset, the browser tab would instantly hit an "Out of Memory" crash. Capping the extraction at 2,000 ensures a visually dense graph that still runs at a smooth frame rate.
 
 ## 3. How to Run the Pipeline
+
 Whenever you are ready to generate your real data graph, run one command in your terminal from the project root:
 
 ```bash
@@ -35,15 +36,21 @@ make data-pipeline-deidentified
 To reach this final pipeline architecture, we evaluated several approaches. The design decisions were driven by the need to balance quantitative research validity with the technical constraints of our multi-agent architecture and frontend.
 
 ### Approach 1: Scrubbing the Synthetic Demo Data
+
 Our initial approach was to apply string-matching redaction to the `seed_curated.py` file, which generates ~1,200 synthetic emails.
+
 - **Why it was rejected**: Synthetic data is artificially clean. If the agents perform well on this data, it doesn't prove they can handle the jargon-heavy, unstructured messiness of real corporate communication. This approach would have invalidated any quantitative research on the AI's efficacy.
 
 ### Approach 2: Processing the Full 500k Enron Corpus
+
 The next logical step was to ingest the entire 500,000+ Enron email dataset and anonymize it on the fly.
+
 - **Why it was rejected**: Our dashboard uses `react-force-graph-3d` (WebGL) to render the network topology. Loading 500k nodes and millions of edges instantly triggers an "Out of Memory" browser crash. Additionally, running LLM inference across half a million emails is computationally and financially unscalable for this project.
 
 ### Final Approach: True Metadata Mapping on a Dense Subset (The Trade-off)
+
 We landed on a hybrid approach: extracting a fixed, reproducible subset of 2,000 *real* emails centered around key executives, and applying a true Metadata Mapping Table.
+
 - **Why we chose this**:
   1. **Research Validity**: The agents analyze real, messy 2001 Enron emails, allowing for scientifically rigorous Precision/Recall calculations against ground-truth data.
   2. **System Performance**: 2,000 edges is the "sweet spot" where the WebGL frontend remains butter-smooth while still looking visually dense and complex.

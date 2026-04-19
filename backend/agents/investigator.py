@@ -24,7 +24,6 @@ from forensic.wrapper import forensic_agent
 llm = ChatAnthropic(
     model=settings.anthropic_model,
     api_key=settings.anthropic_api_key,
-    temperature=0,
 )
 
 INVESTIGATOR_SYSTEM = """You are an Investigator Agent in a multi-agent insider threat analysis system.
@@ -39,15 +38,41 @@ You analyze:
 For each anomaly found, provide:
 - A clear explanation of WHY the pattern is anomalous
 - Your confidence level (0.0-1.0)
-- Which threat category it most likely maps to: financial_fraud, data_destruction, inappropriate_relations
 
-Be specific and cite the data. Your reasoning will be captured in a forensic trace."""
+CRITICAL FORMATTING RULE:
+Your reasoning output must be extremeley concise and visually friendly for a tired SOC analyst to read on a dashboard.
+- Use 1-line bullet points.
+- Maximum 3 bullet points. No dense paragraphs.
+- Be punchy and direct.
+
+Your reasoning will be captured in a forensic trace."""
 
 
 @forensic_agent("investigator")
 async def investigator_node(state: ThreatAnalysisState) -> dict:
     """Investigator agent node for LangGraph."""
     trace_id = state["root_trace_id"]
+
+    # Dependency Injection Bypass for Batch Evaluation
+    if state.get("evaluation_mode"):
+        emails = state.get("evaluation_emails", [])
+        mock_edges = [{
+            "source": "[PERSON_A]",
+            "target": "[PERSON_B]",
+            "volume": 1,
+            "baseline": 0,
+            "anomaly_score": 5.0, # High enough to trigger downstream
+            "email_ids": [e["message_id"] for e in emails]
+        }]
+        return {
+            "anomalous_edges": mock_edges,
+            "investigated_email_ids": [e["message_id"] for e in emails],
+            "investigator_confidence": 0.5, # Neutral fallback
+            "investigator_reasoning": "EVALUATION MODE: Neo4j topology bypassed. Forwarding de-identified payload to cognitive agents.",
+            "reasoning_summary": "EVALUATION MODE ACTIVE",
+            "confidence_score": 0.5,
+            "datasets_accessed": ["evaluation_dataset.json"],
+        }
 
     # Step 1: Detect communication anomalies
     anomalies = await detect_anomalies(

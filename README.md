@@ -219,12 +219,14 @@ The evaluation pipeline is broken down into 5 phases. Phases 1-3 are **already c
 If you wish to re-run the evaluation of the MAS against the benchmark:
 ```bash
 # 1. Have the Multi-Agent System process the 2000 de-identified emails
+# (Warning: This will take ~20 minutes as it processes through Claude 4.7)
+source backend/.venv/bin/activate
 python3 data/scripts/batch_evaluate_mas.py
 
 # 2. Calculate final metrics against the locked ground truth
 python3 data/scripts/evaluate_metrics.py
 ```
-*(The `batch_evaluate_mas.py` and `evaluate_metrics.py` scripts are currently under construction in the `eval-ground-truth` branch.)*
+*(The evaluation scripts are completed and available in the `eval-ground-truth` branch. They will output a final F1-score Confusion Matrix to `data/metrics_report.md`.)*
 
 ---
 
