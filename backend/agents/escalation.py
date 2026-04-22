@@ -16,7 +16,6 @@ from agents.tools.vader_analysis import ALL_KEYWORDS
 llm = ChatAnthropic(
     model=settings.anthropic_model,
     api_key=settings.anthropic_api_key,
-    temperature=0,
 )
 
 ESCALATION_SYSTEM = """You are an Escalation Agent in a multi-agent insider threat analysis system.

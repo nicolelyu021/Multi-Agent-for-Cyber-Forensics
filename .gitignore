@@ -20,3 +20,6 @@ node_modules/
 
 # OS
 .DS_Store
+
+# Local tooling / personal skills
+academic_presentation/

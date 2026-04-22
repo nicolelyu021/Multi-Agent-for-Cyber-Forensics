@@ -23,7 +23,6 @@ from forensic.schema import ForensicRecord
 llm = ChatAnthropic(
     model=settings.anthropic_model,
     api_key=settings.anthropic_api_key,
-    temperature=0,
 )
 
 DELIBERATION_SYSTEM = """You are a Deliberation Mediator in a multi-agent insider threat analysis system.

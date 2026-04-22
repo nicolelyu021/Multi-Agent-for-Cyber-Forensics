@@ -47,6 +47,10 @@ class ThreatAnalysisState(TypedDict):
     departments: Optional[list[str]]
     person_emails: Optional[list[str]]
 
+    # Evaluation Mode Injection
+    evaluation_mode: Optional[bool]
+    evaluation_emails: Optional[list[dict]]
+
     # Forensic metadata
     root_trace_id: str
     datasets_accessed: list[str]
