@@ -1,0 +1,14 @@
+condition_id: E3-raw-llm
+notes: |
+  Upper bound: LLM-structured JSON classifier on raw, un-redacted text.
+  Paired with E1-LLMcls, this isolates the pure privacy cost under a
+  modern classifier. Per pre-registered H2, privacy cost is non-zero
+  but modest (< 10 F1 points).
+classifier_variant: llm_json
+deid_variant: none
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 150.00
+concurrency: 8
+escalation_threshold: 0.7

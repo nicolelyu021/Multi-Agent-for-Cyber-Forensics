@@ -1,0 +1,13 @@
+condition_id: E2-taxon
+notes: |
+  Taxonomy asymmetry correction: give the Student the ACFE-Enron
+  taxonomy that the Grader used. Full-scrub de-ID, LLM classifier.
+  Paired with E1-LLMcls, this isolates the prompt-asymmetry effect.
+classifier_variant: llm_json
+deid_variant: full_scrub
+taxonomy_variant: acfe_enron
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 200.00
+concurrency: 8
+escalation_threshold: 0.7

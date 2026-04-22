@@ -1,0 +1,13 @@
+condition_id: E5-CoT
+notes: |
+  Chain-of-thought ablation (Prof. Sadeh feedback #1). Full scrub +
+  generic policy + LLM classifier with a two-phase CoT prompt.
+  Paired with E1-LLMcls to isolate the CoT contribution.
+classifier_variant: llm_json_cot
+deid_variant: full_scrub
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 250.00
+concurrency: 6
+escalation_threshold: 0.7

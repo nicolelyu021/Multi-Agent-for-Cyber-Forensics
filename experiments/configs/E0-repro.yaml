@@ -1,0 +1,15 @@
+condition_id: E0-repro
+notes: |
+  Reproduce the published baseline F1=2.65%. Heuristic classifier on
+  full-scrub de-identified text with generic corporate policy. Under
+  this condition there are no LLM calls (heuristic is deterministic),
+  so cost is effectively $0 and results should match the published
+  number within bootstrap CI.
+classifier_variant: heuristic
+deid_variant: full_scrub
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 1.00
+concurrency: 16
+escalation_threshold: 0.7

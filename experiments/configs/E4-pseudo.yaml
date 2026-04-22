@@ -1,0 +1,15 @@
+condition_id: E4-pseudo
+notes: |
+  Pseudonym-preserving de-identification (VP_Finance_1 style) with
+  LLM classifier and generic policy. Paired with E1-LLMcls (full scrub)
+  and E3-raw-llm (no redaction), this isolates the effect of preserving
+  role information even while removing identity. Per H3, expected to
+  be significantly better than full scrub.
+classifier_variant: llm_json
+deid_variant: pseudonym
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 150.00
+concurrency: 8
+escalation_threshold: 0.7

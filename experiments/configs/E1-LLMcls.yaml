@@ -1,0 +1,14 @@
+condition_id: E1-LLMcls
+notes: |
+  Swap the heuristic Sentiment classifier for an LLM-structured JSON
+  classifier. All other factors held fixed at the published baseline:
+  full-scrub de-identification and generic corporate policy. Per pre-
+  registered H1, we expect a large positive ΔF1 relative to E0-repro.
+classifier_variant: llm_json
+deid_variant: full_scrub
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 150.00
+concurrency: 8
+escalation_threshold: 0.7

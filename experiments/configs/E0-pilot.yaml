@@ -1,0 +1,14 @@
+condition_id: E0-pilot
+notes: |
+  Infrastructure smoke-test on 50 emails with the heuristic classifier.
+  No LLM calls are expected beyond the LangGraph deliberation node if
+  triggered, but this runner uses the pure heuristic (not the LangGraph
+  pipeline), so LLM spend is expected to be $0.
+classifier_variant: heuristic
+deid_variant: full_scrub
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 50
+max_spend_usd: 1.00
+concurrency: 8
+escalation_threshold: 0.7

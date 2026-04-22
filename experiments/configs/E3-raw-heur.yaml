@@ -1,0 +1,15 @@
+condition_id: E3-raw-heur
+notes: |
+  Control: apply the existing heuristic classifier to RAW text (no PII
+  redaction). Paired with E0-repro, this isolates the pure effect of
+  de-identification under the current classifier. If ΔF1 is small,
+  the privacy narrative in the final presentation is weaker than the
+  classifier-architecture narrative.
+classifier_variant: heuristic
+deid_variant: none
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 2000
+max_spend_usd: 1.00
+concurrency: 16
+escalation_threshold: 0.7
