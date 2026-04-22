@@ -40,3 +40,21 @@ for cond in "${CHAIN[@]}"; do
 done
 
 echo "$(date -u +%FT%TZ) Chain complete" | tee -a "$LOG"
+
+# ---------- auto-scale the winner ----------
+echo "$(date -u +%FT%TZ) Running decide_scale.py" | tee -a "$LOG"
+"$PY" -u experiments/decide_scale.py >> "$LOG" 2>&1 || true
+
+SCALED_CFG=experiments/configs/E6-best-scaled.yaml
+if [[ -f "$SCALED_CFG" ]] && grep -q condition_id "$SCALED_CFG"; then
+  echo "$(date -u +%FT%TZ) START: E6-best-scaled (10K confirmatory)" | tee -a "$LOG"
+  if ! "$PY" -u experiments/run_condition.py "$SCALED_CFG" >> "$LOG" 2>&1; then
+    echo "$(date -u +%FT%TZ) FAIL: E6-best-scaled -- see $LOG" | tee -a "$LOG"
+    exit 3
+  fi
+  echo "$(date -u +%FT%TZ) DONE:  E6-best-scaled" | tee -a "$LOG"
+else
+  echo "$(date -u +%FT%TZ) SKIP: E6 (no winner config emitted)" | tee -a "$LOG"
+fi
+
+echo "$(date -u +%FT%TZ) All done" | tee -a "$LOG"
