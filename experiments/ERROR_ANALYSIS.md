@@ -50,7 +50,41 @@ Comparing the **predictions** (not against ground truth) of the same student on 
 
 So the modern classifier's decision boundary is **essentially invariant** to whether the input is scrubbed or raw. The 9 + 15 = 24 discordant pairs are balanced and account for the 1.27 pp F1 difference — all of which falls within bootstrap CI noise.
 
-## 5. Implications for the final report
+## 5. Calibration and threshold sensitivity
+
+The LLM classifier emits `probability_anomalous ∈ [0, 1]`. Since our baseline uses threshold 0.7, a natural question is whether the reported F1 is threshold-locked or threshold-robust.
+
+**Calibration (E1-LLMcls, n=2000):**
+
+| Predicted-prob bin | N | Mean pred | Actual positive rate |
+|---|---:|---:|---:|
+| [0.00, 0.10) | 1656 | 0.040 | 0.008 |
+| [0.10, 0.20) | 273 | 0.150 | 0.092 |
+| [0.20, 0.30) | 5 | 0.250 | 0.200 |
+| [0.30, 0.50) | 11 | 0.350 | 0.273 |
+| [0.50, 0.70) | 1 | 0.620 | 0.000 |
+| [0.70, 0.85) | 52 | 0.732 | 0.442 |
+| [0.85, 1.01) | 2 | 0.900 | 0.500 |
+
+**Expected Calibration Error: 0.043.** The model is slightly over-confident at the high end (predicts 0.73 but true rate is 0.44 in that bin), but overall calibration is reasonable. The distribution is bimodal — almost no mass in [0.2, 0.7] — which is typical of LLM probability outputs and makes the classifier robust to threshold choice in that range.
+
+**Threshold sweep (E1-LLMcls):**
+
+| Threshold | TP | FP | FN | Precision | Recall | **F1** |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.15 | 53 | 291 | 14 | 15.4% | 79.1% | 25.8% |
+| 0.20 | 28 | 43 | 39 | 39.4% | 41.8% | **40.6%** |
+| 0.30 | 27 | 39 | 40 | 40.9% | 40.3% | **40.6%** |
+| 0.50 | 24 | 31 | 43 | 43.6% | 35.8% | 39.3% |
+| **0.70** (ours) | 24 | 30 | 43 | 44.4% | 35.8% | **39.7%** |
+| 0.80 | 1 | 1 | 66 | 50.0% | 1.5% | 2.9% |
+
+**Takeaways:**
+1. Our reported F1 (39.7%) is essentially F1-optimal. Lowering the threshold buys at most ~1 pp more F1, and that gain is well within bootstrap CI width.
+2. The sharp collapse at threshold 0.8 suggests the model almost never outputs probabilities in (0.8, 1.0) — the chosen threshold 0.7 sits just below a gap.
+3. **A deploying team that cares about recall more than precision** (i.e. wants to catch more threats at the cost of human-review workload) can dial the threshold down to 0.15 and recover 79% recall at the cost of 15% precision. This is a legitimate operating point for a *triage* system where humans re-check flags.
+
+## 6. Implications for the final report
 
 1. **The "privacy cost" headline is not just small — under a competent classifier it is unmeasurable** at n=2000. We have two independent statistical tests pointing the same way (bootstrap CIs overlap, McNemar p=0.84) and high intrinsic agreement between the two model outputs (κ=0.78).
 2. **The 39.7% F1 ceiling is pessimistic.** Hand-audit of the 30 false positives suggests some fraction are teacher misses, not student errors. The usable student performance for governance purposes is probably 45–55% F1.
