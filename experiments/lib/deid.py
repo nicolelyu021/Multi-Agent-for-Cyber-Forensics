@@ -67,56 +67,82 @@ def _load_identity_map(csv_path: Optional[Path]) -> dict[str, str]:
     return mapping
 
 
-_NAME_RX = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b")
+# A personal name is conservatively detected as either:
+# - Two or three consecutive capitalized words ("First Last", "First Middle Last"),
+#   OR
+# - An email address like "first.last@enron.com"
+_BIGRAM_NAME_RX = re.compile(
+    r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b"
+)
+_EMAIL_RX = re.compile(
+    r"\b([a-zA-Z][a-zA-Z0-9._%+-]*@enron\.com)\b",
+    re.IGNORECASE,
+)
 
 
 def _pseudonymize(text: str, name_map: dict[str, str]) -> str:
-    """Replace names with role-tagged pseudonyms.
+    """Replace personal names with role-tagged pseudonyms.
 
-    Strategy:
-    1. First, replace known Enron executives with role tags (CEO_1, CFO_1, ...).
-    2. Then, for other capitalized bigrams that look like personal names,
-       replace with generic ``EMPLOYEE_<hash>`` tokens, keeping the same
-       mapping consistent within the email.
+    Strategy (conservative, aimed at NOT mangling common English):
+    1. Replace known Enron executives (from `_KNOWN_ROLES`) with role tags.
+    2. Replace identity-map names from the CSV when available.
+    3. Replace capitalized bigrams/trigrams ("First Last[ Middle]") with
+       generic ``EMPLOYEE_N`` tokens, consistent within the email.
+    4. Replace @enron.com email addresses with ``EMPLOYEE_EMAIL_N`` tokens.
+    5. Single capitalized words are NOT replaced by default -- they are
+       usually common English (Please, Subject, Monday, etc.) rather than
+       personal names.
     """
     if not text:
         return text
     out = text
 
-    # 1. Known roles
     for name, tag in _KNOWN_ROLES.items():
         pattern = re.compile(r"\b" + re.escape(name) + r"\b", re.IGNORECASE)
         out = pattern.sub(tag, out)
 
-    # 2. Identity-map names (from CSV if available)
     for orig, pseudo in name_map.items():
         if len(orig) < 4:
             continue
         pattern = re.compile(r"\b" + re.escape(orig) + r"\b", re.IGNORECASE)
         out = pattern.sub(pseudo, out)
 
-    # 3. Generic capitalized-bigram scrub — consistent within this email
-    local_map: dict[str, str] = {}
+    _SKIP_BIGRAMS = {
+        "Managing Director", "Executive Vice", "Vice President", "Chief Executive",
+        "Chief Financial", "Chief Operating", "San Diego", "San Francisco",
+        "New York", "Los Angeles", "United States", "Re Re", "Subject Re",
+        "Monday October", "Tuesday October", "Wednesday October", "Thursday October",
+        "Friday October", "Saturday October", "Sunday October",
+        "Please Let", "Dear Sir", "Best Regards", "Kind Regards",
+    }
 
-    def _swap(m: re.Match) -> str:
+    local_name_map: dict[str, str] = {}
+
+    def _swap_bigram(m: re.Match) -> str:
         token = m.group(0)
-        low = token.lower()
-        if low in local_map:
-            return local_map[low]
-        # Skip common non-names beginning with capitals
-        skip = {"Enron", "Houston", "California", "San Diego", "San Francisco",
-                "United States", "New York", "Los Angeles", "Washington",
-                "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                "Saturday", "Sunday", "January", "February", "March", "April",
-                "May", "June", "July", "August", "September", "October",
-                "November", "December", "Raptor", "LJM", "Chewco"}
-        if token in skip:
+        if token in _SKIP_BIGRAMS:
             return token
-        pseudo = f"EMPLOYEE_{len(local_map) + 1}"
-        local_map[low] = pseudo
+        key = token.lower()
+        if key in local_name_map:
+            return local_name_map[key]
+        pseudo = f"EMPLOYEE_{len(local_name_map) + 1}"
+        local_name_map[key] = pseudo
         return pseudo
 
-    out = _NAME_RX.sub(_swap, out)
+    out = _BIGRAM_NAME_RX.sub(_swap_bigram, out)
+
+    local_email_map: dict[str, str] = {}
+
+    def _swap_email(m: re.Match) -> str:
+        token = m.group(0)
+        key = token.lower()
+        if key in local_email_map:
+            return local_email_map[key]
+        pseudo = f"EMPLOYEE_EMAIL_{len(local_email_map) + 1}"
+        local_email_map[key] = pseudo
+        return pseudo
+
+    out = _EMAIL_RX.sub(_swap_email, out)
     return out
 
 

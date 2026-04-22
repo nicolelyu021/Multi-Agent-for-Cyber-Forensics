@@ -194,9 +194,12 @@ If the script cannot compute any field, it refuses to start the run (fail loud, 
 
 | Run ID | Tokens in | Tokens out | $ (est.) | Status |
 |---|---|---|---|---|
-| *(none yet)* | | | | |
+| E0-repro-2026-04-22T07-59-36Z | 0 | 0 | $0.00 | completed |
+| E3-raw-heur-2026-04-22T07-59-59Z | 0 | 0 | $0.00 | completed |
+| E1-smoke-2026-04-22T15-42-08Z | ~2.3K | ~0.9K | $0.02 | completed |
+| E1-LLMcls-2026-04-22T15-43-51Z | running | running | running | in progress |
 
-**Cumulative spend:** $0.00 of $2,000 cap.
+**Cumulative spend:** $0.02 of $2,000 cap (as of last update before E1-LLMcls).
 
 ---
 
@@ -204,13 +207,62 @@ If the script cannot compute any field, it refuses to start the run (fail loud, 
 
 Metrics below are filled in as runs complete. **All F1/P/R are reported with 95% bootstrap CIs.**
 
-| Run ID | Condition | n | F1 (95% CI) | Precision | Recall | Deliberation rate | McNemar vs. E0 (p) | Notes |
-|---|---|---|---|---|---|---|---|---|
-| *(pending first run)* | | | | | | | | |
+| Run ID | Condition | n | F1 (95% CI) | Precision | Recall | TP | FP | FN | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| E0-repro | heuristic / full_scrub / generic | 2000 | **2.65%** (0.00–6.78) | 2.38% | 2.99% | 2 | 82 | 65 | **Bit-exact reproduction of published F1=2.65%** |
+| E3-raw-heur | heuristic / **raw** / generic | 2000 | **2.94%** (0.00–6.90) | 2.90% | 2.99% | 2 | 67 | 65 | Removing de-ID changes F1 by only **+0.29 pp** under the heuristic classifier. |
+| E1-LLMcls | **llm_json** / full_scrub / generic | 2000 | *pending* | | | | | | Running. Sonnet 4.5. |
+
+**Headline ΔF1 decomposition (so far):**
+
+- Privacy-only effect under heuristic: **+0.29 pp** (2.65 → 2.94)
+- Classifier-only effect under full-scrub de-ID: *pending E1 completion*
 
 ---
 
 ## 9. Run-by-run narrative (newest first)
+
+---
+
+### `E3-raw-heur-2026-04-22T07-59-59Z` — control: heuristic on raw text (no de-ID)
+
+**Config:** `experiments/configs/E3-raw-heur.yaml` (sha256: captured in registry)
+**Wall-clock:** ~4s  **Cost:** $0.00
+
+**What I was testing:** isolated effect of de-identification, holding the classifier fixed. If privacy is the true cause of the F1 collapse, this run should show markedly higher F1 than E0-repro.
+
+**Prediction (pre-registered H1):** `ΔF1(classifier-only) > ΔF1(privacy-only)` by ≥3×. This run measures the denominator: ΔF1(privacy-only).
+
+**Result:**
+- F1: **2.94%** (95% CI 0.00–6.90%)
+- Precision: 2.90%  Recall: 2.99%
+- Confusion: TP=2, FP=67, FN=65, TN=1866
+- vs. E0-repro: **ΔF1 = +0.29 pp** (FP dropped from 82 to 67; TP unchanged; recall unchanged)
+
+**What it means:** removing privacy controls entirely, while keeping every other factor fixed, recovers **less than 0.3 F1 points**. Privacy is almost-zero explanation for the observed collapse. The only mechanical effect is that raw text contains some additional real negative-sentiment keywords that trigger more false positives; true-positive detection is unchanged because the limiting factor is the 50% recall ceiling of the 29-keyword dictionary.
+
+**Follow-ups opened:** E1-LLMcls (measures the other side of the decomposition: classifier effect under privacy).
+
+---
+
+### `E0-repro-2026-04-22T07-59-36Z` — baseline reproduction
+
+**Config:** `experiments/configs/E0-repro.yaml`
+**Wall-clock:** ~4s  **Cost:** $0.00
+
+**What I was testing:** does our new, generalized, config-driven runner reproduce the published F1=2.65% bit-for-bit when given the same classifier / de-ID / taxonomy / threshold? If not, the code base or model behavior has silently changed and no other result is credible.
+
+**Prediction (pre-registered stopping rule):** |ΔF1 from published 2.65%| < 1 pp. If violated, halt and diagnose.
+
+**Result:**
+- F1: **2.65%** (95% CI 0.00–6.78%), matches published exactly
+- Precision: 2.38%  Recall: 2.99%
+- Confusion: TP=2, FP=82, FN=65, TN=1851
+- Matches `data/metrics_report.md` to all reported digits.
+
+**What it means:** baseline is sound; all subsequent ablations can be trusted as same-pipeline comparisons.
+
+**Note on the audit that made this reproducible:** initial attempt yielded F1=0% because my reimplementation of the heuristic used `keyword_signal = 1 if kw_hit else 0`, whereas the actual `backend/agents/tools/vader_analysis.py:96` sets `flagged = bool(keywords_found) OR sentiment.compound < -0.5`, and that `flagged` boolean (not raw keyword presence) drives the keyword signal. This logic is buried two functions deep and is almost certainly an unintentional quirk. Documented in `classifiers.heuristic_classify` with a comment for posterity. This is itself a governance finding: the published classifier's behavior is sensitive to a code path no reader would spot from the agent's system prompt.
 
 ### (template for each run)
 

@@ -1,0 +1,5 @@
+{"message_id": "20865076.1075855679438.JavaMail.evans@thyme", "is_anomalous_pred": false, "confidence": 0.05, "category_pred": "normal", "reasoning": "evidence: ''", "tokens_in": 525, "tokens_out": 181}
+{"message_id": "19937858.1075858631491.JavaMail.evans@thyme", "is_anomalous_pred": false, "confidence": 0.05, "category_pred": "normal", "reasoning": "evidence: ''", "tokens_in": 534, "tokens_out": 102}
+{"message_id": "17569418.1075855710803.JavaMail.evans@thyme", "is_anomalous_pred": false, "confidence": 0.15, "category_pred": "normal", "reasoning": "evidence: ''", "tokens_in": 469, "tokens_out": 201}
+{"message_id": "29043641.1075857584989.JavaMail.evans@thyme", "is_anomalous_pred": false, "confidence": 0.0, "category_pred": "normal", "reasoning": "evidence: ''", "tokens_in": 568, "tokens_out": 41}
+{"message_id": "31822863.1075852694744.JavaMail.evans@thyme", "is_anomalous_pred": false, "confidence": 0.05, "category_pred": "normal", "reasoning": "evidence: ''", "tokens_in": 1202, "tokens_out": 216}

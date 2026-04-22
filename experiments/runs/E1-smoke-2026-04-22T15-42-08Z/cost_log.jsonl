@@ -1,0 +1,5 @@
+{"model": "claude-sonnet-4-5", "tokens_in": 534, "tokens_out": 102, "cost_usd": 0.003132, "timestamp_epoch": 1776872534.809726, "purpose": "sentiment_llm"}
+{"model": "claude-sonnet-4-5", "tokens_in": 568, "tokens_out": 41, "cost_usd": 0.0023190000000000003, "timestamp_epoch": 1776872536.269996, "purpose": "sentiment_llm"}
+{"model": "claude-sonnet-4-5", "tokens_in": 525, "tokens_out": 181, "cost_usd": 0.00429, "timestamp_epoch": 1776872537.292274, "purpose": "sentiment_llm"}
+{"model": "claude-sonnet-4-5", "tokens_in": 469, "tokens_out": 201, "cost_usd": 0.004422000000000001, "timestamp_epoch": 1776872537.4328089, "purpose": "sentiment_llm"}
+{"model": "claude-sonnet-4-5", "tokens_in": 1202, "tokens_out": 216, "cost_usd": 0.006846, "timestamp_epoch": 1776872542.152731, "purpose": "sentiment_llm"}

@@ -1,0 +1,10 @@
+condition_id: E1-smoke
+notes: 5-email smoke test of the LLM classifier pipeline. Verifies API, schema parsing, and cost tracking.
+classifier_variant: llm_json
+deid_variant: full_scrub
+taxonomy_variant: generic
+student_model: claude-sonnet-4-5
+n_emails: 5
+max_spend_usd: 1.00
+concurrency: 3
+escalation_threshold: 0.7

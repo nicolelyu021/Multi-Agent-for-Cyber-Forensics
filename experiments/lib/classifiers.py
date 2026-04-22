@@ -188,17 +188,20 @@ intentional.
 
 Output strict JSON with these keys and nothing else:
 {{
-  "is_anomalous": true or false,
-  "confidence": a number in [0.0, 1.0],
+  "probability_anomalous": a number in [0.0, 1.0] representing P(this email
+    is compliance-relevant | the evidence you can see). 0.0 = certainly
+    normal, 1.0 = certainly a genuine compliance concern,
   "category": one of ["financial_fraud", "data_destruction",
                      "inappropriate_relations", "policy_violation", "normal"],
-  "evidence_quote": "a short direct quote from the email that best supports the
-    decision, or '' if is_anomalous is false"
+  "evidence_quote": "a short direct quote from the email that best supports
+    the decision, or '' if there is no meaningful concern"
 }}
 
-Be calibrated. A normal business email is the overwhelming majority; label
-anomalous only when textual evidence is plausible to a human compliance
-reviewer."""
+Base-rate anchor: across a large Enron mail corpus, the prior probability of
+any given email being a compliance concern is under 5%. Most routine business
+correspondence should receive probability_anomalous well below 0.5. Assign
+probability_anomalous >= 0.5 only when a cautious human compliance reviewer
+would plausibly open an investigation."""
 
 
 _LLM_SYSTEM_JSON_COT = """{taxonomy}
@@ -209,15 +212,16 @@ de-identified. Analyze it in two phases.
 Phase 1 (private reasoning). Think through:
 - Which sentences, if any, carry compliance-relevant signal?
 - Which of the taxonomy categories, if any, fits best?
-- What is the base rate? Most emails are normal; resist the urge to
-  over-flag on weak signals.
-- What calibrated confidence would a cautious human reviewer assign?
+- What is the base rate? Most emails are routine; resist the urge to
+  over-flag on weak signals. Under 5% of a large Enron mail sample is
+  a genuine compliance concern.
+- What calibrated probability_anomalous would a cautious human reviewer assign?
 
 Phase 2 (structured verdict). Output strict JSON with these keys:
 {{
   "reasoning_summary": "2-3 sentence summary of your Phase-1 reasoning",
-  "is_anomalous": true or false,
-  "confidence": a number in [0.0, 1.0],
+  "probability_anomalous": a number in [0.0, 1.0] representing P(compliance
+    concern | evidence you can see),
   "category": one of ["financial_fraud", "data_destruction",
                      "inappropriate_relations", "policy_violation", "normal"],
   "evidence_quote": "a short direct quote from the email or '' if clean"
@@ -320,22 +324,23 @@ async def llm_json_classify(
             raw_response=raw,
         )
 
-    is_anom = bool(parsed.get("is_anomalous", False))
     try:
-        conf = float(parsed.get("confidence", 0.0))
+        p_anom = float(parsed.get("probability_anomalous", 0.0))
     except Exception:
-        conf = 1.0 if is_anom else 0.0
-    conf = max(0.0, min(1.0, conf))
+        p_anom = 0.0
+    p_anom = max(0.0, min(1.0, p_anom))
+    is_anom = p_anom >= escalation_threshold
     category = str(parsed.get("category", "normal")).lower().strip() or "normal"
     evidence = parsed.get("evidence_quote", "")
     reasoning_summary = parsed.get("reasoning_summary", "")
 
-    # Classification decision is taken from the LLM's is_anomalous field,
-    # NOT by re-thresholding its confidence. This is intentional and
-    # documented: the LLM is treated as a first-class classifier.
+    # The LLM now returns probability_anomalous (a calibrated P(threat|evidence)),
+    # and we threshold it at ``escalation_threshold`` exactly like the heuristic
+    # baseline. This makes the two classifier variants directly comparable --
+    # both use the same threshold on a [0,1] signal to produce the binary verdict.
     return Verdict(
         is_anomalous=is_anom,
-        confidence=round(conf, 4),
+        confidence=round(p_anom, 4),
         category=category,
         reasoning=(
             f"{reasoning_summary} | evidence: {evidence!r}"
