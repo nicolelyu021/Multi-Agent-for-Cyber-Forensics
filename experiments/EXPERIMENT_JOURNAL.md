@@ -68,7 +68,10 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 4. **Prompt choices are operating-point choices.** CoT did not reduce *accuracy* but shifted the model into a high-precision / low-recall regime. For high-cost-of-miss applications like insider threat, that shift matters; teams should measure operating-point effects, not just F1.
 5. **Null results need n ≥ 5,000 to become quantitative.** At n=2,000 (67 positives) our classifier re-run noise is ~5 pp F1; the taxonomy-injection effect, which looks real qualitatively, is below that noise floor. For the report we can state *qualitative* support with *quantitative* significance only for the dominant classifier-architecture effect.
 
-**Total spend:** $90.16 of $5,000 budget across 8 LLM runs + 2 E0 baselines.
+**Total spend:** $63.27 of $5,000 budget across 8 LLM runs (1.3% of budget used).
+
+**Deployment-useful result from post-hoc ensembling** (`experiments/ENSEMBLE_ANALYSIS.md`):
+> Averaging `probability_anomalous` across 5 modern-classifier runs and thresholding at 0.2 reaches **F1 46.63% with Recall 61.3% and Precision 37.6%**, flagging 101 of 1,887 emails (5.4%) for human review. This is the first operating point we found that pushes recall above 60%, and it is strictly better than any single run for a human-in-the-loop triage workflow. Point estimate is within 0.1 pp of the best single run (E2-taxon), so ensembling does not break through the classifier plateau — but it does unlock a materially better *operating point*. Incremental cost for this configuration is 5× per-email compute (~$50 per 2k emails vs. $10 for a single run) for a +20 pp recall lift. This is a legitimate governance trade-off to surface for a bank-scale deployment.
 
 ---
 
