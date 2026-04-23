@@ -23,3 +23,4 @@ node_modules/
 
 # Local tooling / personal skills
 academic_presentation/
+experiments/runs/*.stdout

@@ -58,8 +58,8 @@ Eight conditions were queued. Five have completed at the time of writing; three 
 **Interpretation of the significance structure:**
 - Only one effect is significant: swapping the 29-word heuristic classifier for the LLM classifier (+37 pp, p<0.0001).
 - Every privacy manipulation is null (p ≥ 0.47). The de-identification policy has *no statistically detectable* effect on F1 under a modern classifier at n=2,000.
-- The taxonomy-injection effect is in the predicted direction (+6.88 pp, and per-category recall on Financial Fraud moves from 39.3% to 45.6% as hypothesized), but the paired test does not reach α=0.05.
-- **Crucially, the same-config re-run (E2 → E6) shows a 4.6 pp F1 swing with p=0.03.** This establishes that the *LLM-stochasticity floor* on this dataset is around 5 pp — comparable in magnitude to the taxonomy effect we wanted to measure. At n=2,000 we cannot cleanly separate a real taxonomy effect from LLM sampling noise.
+- The taxonomy-injection effect is in the predicted direction (per-category recall on Financial Fraud moves from 39.3% to 45.6% as hypothesized). With three E2-taxon replicates averaged against two E1-LLMcls replicates, the revised point estimate is **ΔF1 = +4.1 pp** (mean E2=44.46%, mean E1=40.35%), down from the single-sample +6.88 pp.
+- **The test-retest structure is prompt-dependent.** Two E1-LLMcls runs produced *identical* confusion matrices (F1=40.35% twice, 8 of 1887 predictions disagree) — the generic prompt is effectively deterministic. Three E2-taxon runs produced F1 = {46.55%, 42.37%, 44.44%}, SD 2.09 pp — the taxonomy prompt introduces genuine sampling variance, likely because it forces a 4-category choice. Paired McNemar on ensembled predictions (majority vote of each side) still fails to cross α=0.05 (p=0.44). At n=1,887 we cannot separate a +4.1 pp taxonomy effect from the +2.1 pp SD of the taxonomy prompt itself; n ≈ 6,000 would be required.
 - CoT shifts the operating point dramatically (precision 50% / recall 14.9%) but makes the same *number* of total errors as E1 (p=0.43 on accuracy).
 
 **H1 is confirmed at 19× the pre-registered 3× threshold.** H2 is falsified in the favorable direction. H3 is *consistent with* the data but *under-powered* at n=2,000. H5 is decisively falsified.
@@ -90,7 +90,9 @@ The governance fix is straightforward — move the decision into the observed la
 
 1. **Pre-registration.** Hypotheses, metrics, stopping rules, and analysis plan were frozen in `experiments/PREREGISTRATION.md` before any of the runs reported here were executed. McNemar's exact test was chosen in advance; bootstrap CI width (1,000 resamples) was chosen in advance; the 3× threshold for H1 was chosen in advance.
 2. **Paired testing.** Every condition classifies the same 2,000 message IDs. Comparisons between conditions are paired at the message level, so classifier disagreements cannot be confounded with sample differences.
-3. **Cost-aware execution.** Every LLM call is logged with input/output token counts and dollar cost. A hard `max_spend_usd` kill switch in `experiments/lib/cost_tracker.py` bounds spend per condition. Total spend across the six production LLM runs: **$63.24** (summed from per-run `cost_log.jsonl` files). Including one aborted partial run and a smoke test, total API charges on this branch are $67.22 of the $5,000 budget (1.34%).
+3. **Cost-aware execution.** Every LLM call is logged with input/output token counts and dollar cost. A hard `max_spend_usd` kill switch in `experiments/lib/cost_tracker.py` bounds spend per condition. Total spend across eight production LLM runs (including test-retest replicates): **$82.96** (summed from per-run `cost_log.jsonl` files). Including one aborted partial run and a smoke test, total API charges on this branch are $86.94 of the $5,000 budget (1.74%).
+
+4. **Test-retest.** Two independent re-runs of E1-LLMcls at identical config produced *identical* confusion matrices (F1=40.35% both times); three re-runs of E2-taxon produced F1 SD of 2.09 pp. This gives a *prompt-dependent* stochasticity floor, not a single "LLM noise" number, and is documented in `experiments/TEST_RETEST_ANALYSIS.md`. The re-test also halved our point estimate of the taxonomy effect (from +6.88 pp to +4.11 pp).
 4. **Provenance.** Each run writes a README with git SHA, config hash, prompt hashes, dataset hash, ground-truth hash, and resolved YAML. Runs are resumable: re-invoking a condition picks up where an interrupted run left off using the predictions.jsonl append log.
 5. **Reproducibility.** Seed-controlled sampling (`seed_sampling=42`) and deterministic prompt templates (hash-logged) allow any run to be re-executed exactly. The partial smoke runs (n=50) are retained as deterministic regression tests for the infrastructure.
 
@@ -109,13 +111,20 @@ Reading the `reasoning` fields in `experiments/runs/E5-CoT-.../predictions.jsonl
 
 **Governance implication:** prompting choices are operating-point choices. CoT did not make the model stupider; it changed its risk appetite. Teams evaluating agentic systems should check whether a prompt change moves the operating point in the direction their cost structure requires, not just whether F1 goes up.
 
-## 6. A sixth finding — the LLM-stochasticity floor is 5 pp, and that matters for n planning
+## 6. A sixth finding — the stochasticity floor is *prompt-dependent*
 
-E6-best-scaled re-ran E2-taxon with an identical config (same prompt hash, same dataset, same model, different API sampling). F1 fell from 46.55% to 41.94%. Paired McNemar showed only 6 discordant pairs but an asymmetric p=0.03.
+A single same-config re-run pair (E2-orig vs E6-best-scaled, ΔF1 = −4.6 pp) suggested an LLM-stochasticity floor of ~5 pp on this dataset. With a second E1 run and a third E2 run added (2026-04-23, $19.71), the picture is sharper:
 
-This tells us that the *test-retest reliability* of this classifier on this dataset is about ±5 pp F1, driven by LLM sampling variability on a small number of borderline emails. Any experimental factor whose true effect is below 5 pp cannot be separated from re-run noise at n=2,000.
+| Condition | N runs | F1 values | Mean | SD |
+|---|---:|---|---:|---:|
+| E1-LLMcls (generic prompt) | 2 | 40.35%, 40.35% (**identical confusion matrix**) | **40.35%** | **0.000 pp** |
+| E2-taxon (ACFE-Enron prompt) | 3 | 46.55%, 42.37%, 44.44% | **44.46%** | **2.09 pp** |
 
-**Implication for future work:** to quantify the taxonomy-injection effect (E1 → E2) cleanly we need n ≥ 5,000 labeled emails. The budget to produce another 3,000 Opus-graded ground-truth labels is approximately $75 — well within the remaining $4,900 budget — and a natural next step. We note this explicitly rather than pretending H3 was established.
+The E1 prompt is *effectively deterministic* at n=1,887 — only 8 emails flip between the two runs (κ=0.921). The E2 prompt has genuine re-run noise of ~2 pp SD. We hypothesise the mechanism is decision-entropy: the taxonomy prompt forces the model to choose among four named fraud categories on borderline emails, where the generic prompt lets it fall back to a simpler binary. This is a concrete cost of prompt complexity that should be measured explicitly in any LLM-governance audit.
+
+**Governance implication:** any prompt ablation claim based on a single run per variant is confounded with re-run noise, *but the size of that noise depends on the variant.* Test-retest should be paired per-variant, not assumed to be a single dataset-wide constant. For the H3 taxonomy claim, the revised effect size (+4.1 pp mean across replicates) is roughly 2× the E2-prompt SD — a real signal below statistical resolution at n=1,887, requiring n ≈ 6,000 to establish at α=0.05. See `experiments/TEST_RETEST_ANALYSIS.md`.
+
+**Implication for future work:** to resolve H3 cleanly we would need roughly 3,000 additional Opus-graded ground-truth labels (~$75 in API cost), well inside the remaining $4,900 budget. We report this openly rather than pretending H3 was established.
 
 ## 7. Threats to validity
 

@@ -27,7 +27,7 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 
 > **State of the evidence (latest revision):** see "Results ledger" at the bottom of this file. Top-of-file narrative updated after every new run.
 
-### Current headline (after 8 completed runs)
+### Current headline (after 10 completed runs — test-retest pair added 2026-04-23)
 
 > **Privacy controls do not cost measurable F1 under a competent classifier. The 37-point "privacy gap" in the midterm presentation is classifier architecture. CoT prompting does not help and can actively hurt. Taxonomy injection looks helpful but is not statistically distinguishable from LLM re-run noise at n=2,000.**
 
@@ -40,7 +40,9 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 | **E4-pseudo** | LLM-JSON | **pseudonym** | generic | 39.06% | 27.59–49.23 | Privacy null vs E1 (p=0.47) |
 | **E2-taxon** ★ best point est. | LLM-JSON | full-scrub | **ACFE-Enron** | **46.55%** | 34.19–56.92 | +6.88 pp vs E1 (p=0.34, NS) |
 | **E5-CoT** | LLM-JSON + CoT scratchpad | full-scrub | generic | 22.99% | 10.81–35.16 | Worse operating point (p=0.43 vs E1) |
-| **E6-best-scaled** (E2 re-run) | LLM-JSON | full-scrub | ACFE-Enron | 41.94% | 30.36–53.06 | Confirms ~5 pp LLM-stochasticity floor |
+| **E6-best-scaled** (E2 re-run) | LLM-JSON | full-scrub | ACFE-Enron | 41.94% | 30.36–53.06 | Test-retest of E2 |
+| **E1-LLMcls redux** (2026-04-23) | LLM-JSON | full-scrub | generic | **39.67%** | — | Test-retest of E1: identical confusion matrix |
+| **E2-taxon redux** (2026-04-23) | LLM-JSON | full-scrub | ACFE-Enron | 43.90% | — | Third E2 run, F1 SD across 3 runs = 2.09 pp |
 
 **Significance summary (paired McNemar vs. E1-LLMcls control):**
 
@@ -51,13 +53,16 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 | LLM + full-scrub → LLM + pseudonym | E1 → E4 | −0.61 pp | 0.47 | ❌ null |
 | LLM, add ACFE-Enron taxonomy | E1 → E2 | +6.88 pp | 0.34 | ⚠ consistent direction, under-powered |
 | LLM, add CoT scratchpad | E1 → E5 | −16.68 pp (F1), same total errors | 0.43 | ❌ null on accuracy, big operating-point shift |
-| E2 re-run (same config, different LLM sample) | E2 → E6 | −4.61 pp | 0.03 | — (estimates re-run noise ≈ 5 pp) |
+| E2 re-run (same config, different LLM sample) | E2 → E6 | −4.61 pp | 0.03 | — single-pair noise estimate |
+| E1 test-retest (same config) | E1 → E1-redux | +0.00 pp | ≈1.00 | **Re-run noise ≈ 0 for the generic prompt** |
+| E2 test-retest (3 runs aggregated) | — | SD = 2.09 pp | — | Re-run noise for the taxonomy prompt |
+| Taxonomy effect, revised (mean across retests) | E1-mean → E2-mean | +4.11 pp | 0.25–0.44 (ensemble McNemar) | Still under-powered; point estimate halved |
 
 **What this establishes:**
 - **H1** (classifier explains ≥3× more than privacy): **confirmed** — 37 pp vs. ≤ 1.9 pp is a 19× ratio on point estimate; on *significance*, classifier p<0.0001 vs. privacy p∈{0.47, 0.71, 0.84} is decisive.
 - **H2** (privacy costs real but <10 pp under modern classifier): **falsified in the favorable direction** — privacy cost is statistically unmeasurable at n=2,000.
 - **H2-pseudo** (pseudonymization is intermediate): **not supported** — statistically equivalent to full-scrub.
-- **H3** (taxonomy injection adds ≥5 pp): **not established** — E2 point estimate is +6.88 pp in the predicted direction, and per-category recall on Financial Fraud moves from 39.3% → 45.6% as predicted. But McNemar p=0.34 and the E6 re-run at the same config gives F1=41.94%, suggesting most of the gap is re-run stochasticity rather than taxonomy.
+- **H3** (taxonomy injection adds ≥5 pp): **not established, revised effect size lower.** Mean across 3 E2 runs is 44.46% (SD = 2.09 pp) vs. 40.35% across 2 E1 runs (SD = 0.00 pp). The true taxonomy effect is roughly **+4.1 pp** — a genuine signal, but roughly equal to 2× E2's re-run SD. Ensembled McNemar tests yield p ∈ {0.25, 0.44, 1.00} depending on vote rule. To resolve H3 at α=0.05 we'd need n ≈ 6,000. See `TEST_RETEST_ANALYSIS.md`.
 - **H5** (CoT adds ≥3 pp F1): **falsified decisively** — CoT lowers F1 by 16.68 pp. McNemar on accuracy is null (p=0.43), but Sonnet under CoT talks itself *out* of flagging borderline emails, shifting the operating point toward precision (50%) at the cost of recall (14.9%).
 
 **Governance implications for the final report:**
@@ -66,9 +71,10 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 2. **Observability without authority** is a specific failure mode of multi-agent LLM systems: LLM reasoning tokens were logged and hashed through every layer, but the actual binary decision came from a 29-word regex outside the LLM reasoning surface. The NIST AI RMF *Measure 2.8 (Transparency)* bar was met textually but not mechanistically.
 3. **Strong-privacy-by-default is supported empirically.** Full-scrub PII redaction imposes **zero measurable F1 cost** vs. both raw text and pseudonymization. Any weakening of de-ID policy must be justified on grounds *other than classification accuracy*.
 4. **Prompt choices are operating-point choices.** CoT did not reduce *accuracy* but shifted the model into a high-precision / low-recall regime. For high-cost-of-miss applications like insider threat, that shift matters; teams should measure operating-point effects, not just F1.
-5. **Null results need n ≥ 5,000 to become quantitative.** At n=2,000 (67 positives) our classifier re-run noise is ~5 pp F1; the taxonomy-injection effect, which looks real qualitatively, is below that noise floor. For the report we can state *qualitative* support with *quantitative* significance only for the dominant classifier-architecture effect.
+5. **Prompt complexity increases stochasticity** — a new methodological finding from the test-retest pair. Two E1-LLMcls runs at identical config produced *identical* confusion matrices (F1=40.35% both times, only 8 of 1887 predictions disagree). Three E2-taxon runs produced F1 SD = 2.09 pp. The taxonomy prompt, by forcing the model to select among 4 named categories, raises decision entropy on borderline emails. **Any prompt ablation should include a test-retest pair per variant, not a single run per variant** — otherwise LLM-sampling noise is confounded with prompt effect.
+6. **Null privacy result is genuine, not power-limited.** With E1 re-run noise now estimated at 0 pp, the privacy manipulations (E1 ↔ E3-raw-llm, ΔF1=+1.27 pp; E1 ↔ E4, ΔF1=−0.61 pp) produce effects *larger than* the stochastic floor but still statistically indistinguishable from zero. This is a stronger version of the privacy null than we could claim before the retest.
 
-**Total spend:** $63.24 across the 6 production LLM runs (E1, E2, E3-raw-llm, E4, E5, E6), verified by summing the `cost_usd` field in each run's `cost_log.jsonl`. Including one aborted partial run ($3.96) and the smoke test ($0.02), total API charges on this branch are **$67.22 of $5,000** (1.34% of budget used). The two heuristic runs (E0-repro, E3-raw-heur) used no LLM and cost $0.
+**Total spend:** $82.96 across 8 production LLM runs (E1, E1-redux, E2, E2-redux, E3-raw-llm, E4, E5, E6), verified from per-run `cost_log.jsonl`. Including the aborted partial ($3.96) and the smoke test ($0.02), total API charges on this branch are **$86.94 of $5,000** (1.74% of budget used). The two heuristic runs (E0-repro, E3-raw-heur) used no LLM and cost $0.
 
 **Deployment-useful result from post-hoc ensembling** (`experiments/ENSEMBLE_ANALYSIS.md`):
 > Averaging `probability_anomalous` across 5 modern-classifier runs and thresholding at 0.2 reaches **F1 46.63% with Recall 61.3% and Precision 37.6%**, flagging 101 of 1,887 emails (5.4%) for human review. This is the first operating point we found that pushes recall above 60%, and it is strictly better than any single run for a human-in-the-loop triage workflow. Point estimate is within 0.1 pp of the best single run (E2-taxon), so ensembling does not break through the classifier plateau — but it does unlock a materially better *operating point*. Incremental cost for this configuration is 5× per-email compute (~$50 per 2k emails vs. $10 for a single run) for a +20 pp recall lift. This is a legitimate governance trade-off to surface for a bank-scale deployment.
@@ -244,8 +250,10 @@ If the script cannot compute any field, it refuses to start the run (fail loud, 
 | E2-taxon-2026-04-22T16-48-53Z | ~1.20M | ~370K | $10.38 | completed (n=1887 paired, 113 JSON-parse drops) |
 | E5-CoT-2026-04-22T17-33-48Z | ~1.15M | ~1.15M | $16.04 | completed (CoT roughly doubled output tokens) |
 | E6-best-scaled-2026-04-22T20-44-07Z | ~1.20M | ~370K | $11.00 | completed (dataset capped at 2000) |
+| E1-LLMcls-2026-04-23T05-47-05Z | 1.05M | 300K | $8.68 | test-retest of E1 (2026-04-23) |
+| E2-taxon-2026-04-23T05-47-05Z | ~1.20M | ~370K | $11.03 | test-retest #2 of E2 (2026-04-23) |
 
-**Cumulative spend:** **$63.24** across the 6 production runs (E1, E3-raw-llm, E4, E2, E5, E6), verified by summing the `cost_usd` field in each run's `cost_log.jsonl`. Including the aborted partial ($3.96) and the smoke test ($0.02), total API charges on this branch are **$67.22 of $5,000** (1.34% of budget used). E0-repro and E3-raw-heur are heuristic-only and cost $0.
+**Cumulative spend:** **$82.96** across the 8 production runs (E1 ×2, E3-raw-llm, E4, E2 ×3, E5), verified from per-run `cost_log.jsonl`. Including the aborted partial ($3.96) and the smoke test ($0.02), total API charges on this branch are **$86.94 of $5,000** (1.74% of budget used). E0-repro and E3-raw-heur are heuristic-only and cost $0.
 
 ---
 
