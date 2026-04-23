@@ -68,7 +68,7 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 4. **Prompt choices are operating-point choices.** CoT did not reduce *accuracy* but shifted the model into a high-precision / low-recall regime. For high-cost-of-miss applications like insider threat, that shift matters; teams should measure operating-point effects, not just F1.
 5. **Null results need n ≥ 5,000 to become quantitative.** At n=2,000 (67 positives) our classifier re-run noise is ~5 pp F1; the taxonomy-injection effect, which looks real qualitatively, is below that noise floor. For the report we can state *qualitative* support with *quantitative* significance only for the dominant classifier-architecture effect.
 
-**Total spend:** $63.27 of $5,000 budget across 8 LLM runs (1.3% of budget used).
+**Total spend:** $63.24 across the 6 production LLM runs (E1, E2, E3-raw-llm, E4, E5, E6), verified by summing the `cost_usd` field in each run's `cost_log.jsonl`. Including one aborted partial run ($3.96) and the smoke test ($0.02), total API charges on this branch are **$67.22 of $5,000** (1.34% of budget used). The two heuristic runs (E0-repro, E3-raw-heur) used no LLM and cost $0.
 
 **Deployment-useful result from post-hoc ensembling** (`experiments/ENSEMBLE_ANALYSIS.md`):
 > Averaging `probability_anomalous` across 5 modern-classifier runs and thresholding at 0.2 reaches **F1 46.63% with Recall 61.3% and Precision 37.6%**, flagging 101 of 1,887 emails (5.4%) for human review. This is the first operating point we found that pushes recall above 60%, and it is strictly better than any single run for a human-in-the-loop triage workflow. Point estimate is within 0.1 pp of the best single run (E2-taxon), so ensembling does not break through the classifier plateau — but it does unlock a materially better *operating point*. Incremental cost for this configuration is 5× per-email compute (~$50 per 2k emails vs. $10 for a single run) for a +20 pp recall lift. This is a legitimate governance trade-off to surface for a bank-scale deployment.
@@ -237,14 +237,15 @@ If the script cannot compute any field, it refuses to start the run (fail loud, 
 | E0-repro-2026-04-22T07-59-36Z | 0 | 0 | $0.00 | completed |
 | E3-raw-heur-2026-04-22T07-59-59Z | 0 | 0 | $0.00 | completed |
 | E1-smoke-2026-04-22T15-42-08Z | ~2.3K | ~0.9K | $0.02 | completed |
+| E1-LLMcls-2026-04-22T15-42-29Z | ~480K | ~135K | $3.96 | **aborted** at 901/2000 (buffered-output bug; restarted as 15-43-51Z) |
 | E1-LLMcls-2026-04-22T15-43-51Z | 1.05M | 300K | $8.66 | completed |
 | E3-raw-llm-2026-04-22T16-04-26Z | 1.04M | 300K | $8.53 | completed |
 | E4-pseudo-2026-04-22T16-24-16Z | 1.05M | 301K | $8.64 | completed |
 | E2-taxon-2026-04-22T16-48-53Z | ~1.20M | ~370K | $10.38 | completed (n=1887 paired, 113 JSON-parse drops) |
-| E5-CoT-2026-04-22T17-33-48Z | ~1.15M | ~1.15M | $16.04 | completed (CoT doubled output tokens) |
+| E5-CoT-2026-04-22T17-33-48Z | ~1.15M | ~1.15M | $16.04 | completed (CoT roughly doubled output tokens) |
 | E6-best-scaled-2026-04-22T20-44-07Z | ~1.20M | ~370K | $11.00 | completed (dataset capped at 2000) |
 
-**Cumulative spend:** $63.27 of $5,000 cap (1.3% used).
+**Cumulative spend:** **$63.24** across the 6 production runs (E1, E3-raw-llm, E4, E2, E5, E6), verified by summing the `cost_usd` field in each run's `cost_log.jsonl`. Including the aborted partial ($3.96) and the smoke test ($0.02), total API charges on this branch are **$67.22 of $5,000** (1.34% of budget used). E0-repro and E3-raw-heur are heuristic-only and cost $0.
 
 ---
 
