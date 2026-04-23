@@ -1,0 +1,8 @@
+2026-04-22T16:48:52Z START: E2-taxon
+2026-04-22T17:33:48Z DONE:  E2-taxon
+2026-04-22T17:33:48Z START: E5-CoT
+2026-04-22T20:44:07Z DONE:  E5-CoT
+2026-04-22T20:44:07Z Ablation chain complete. Running decide_scale.
+2026-04-22T20:44:07Z START: E6-best-scaled (10K confirmatory)
+2026-04-22T21:12:37Z DONE:  E6-best-scaled
+2026-04-22T21:12:37Z All done

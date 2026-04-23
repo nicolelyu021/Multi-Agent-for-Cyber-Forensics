@@ -1,0 +1,410 @@
+=== Phase-2 chain started at 2026-04-22T16:48:52Z ===
+2026-04-22T16:48:52Z START: E2-taxon
+[E2-taxon-2026-04-22T16-48-53Z] loaded 2000 records, 0 already done, 2000 remaining
+[E2-taxon-2026-04-22T16-48-53Z] 25/2000 elapsed=20s spent=$0.12
+[E2-taxon-2026-04-22T16-48-53Z] 50/2000 elapsed=46s spent=$0.27
+[E2-taxon-2026-04-22T16-48-53Z] 75/2000 elapsed=64s spent=$0.39
+[E2-taxon-2026-04-22T16-48-53Z] 100/2000 elapsed=86s spent=$0.52
+[E2-taxon-2026-04-22T16-48-53Z] 125/2000 elapsed=104s spent=$0.65
+[E2-taxon-2026-04-22T16-48-53Z] 150/2000 elapsed=129s spent=$0.79
+[E2-taxon-2026-04-22T16-48-53Z] 175/2000 elapsed=148s spent=$0.94
+[E2-taxon-2026-04-22T16-48-53Z] 200/2000 elapsed=169s spent=$1.08
+[E2-taxon-2026-04-22T16-48-53Z] 225/2000 elapsed=191s spent=$1.22
+[E2-taxon-2026-04-22T16-48-53Z] 250/2000 elapsed=218s spent=$1.35
+[E2-taxon-2026-04-22T16-48-53Z] 275/2000 elapsed=238s spent=$1.48
+[E2-taxon-2026-04-22T16-48-53Z] 300/2000 elapsed=266s spent=$1.62
+[E2-taxon-2026-04-22T16-48-53Z] 325/2000 elapsed=285s spent=$1.74
+[E2-taxon-2026-04-22T16-48-53Z] 350/2000 elapsed=304s spent=$1.87
+[E2-taxon-2026-04-22T16-48-53Z] 375/2000 elapsed=324s spent=$2.01
+[E2-taxon-2026-04-22T16-48-53Z] 400/2000 elapsed=347s spent=$2.16
+[E2-taxon-2026-04-22T16-48-53Z] 425/2000 elapsed=366s spent=$2.30
+[E2-taxon-2026-04-22T16-48-53Z] 450/2000 elapsed=383s spent=$2.42
+[E2-taxon-2026-04-22T16-48-53Z] 475/2000 elapsed=403s spent=$2.56
+[E2-taxon-2026-04-22T16-48-53Z] 500/2000 elapsed=423s spent=$2.70
+[E2-taxon-2026-04-22T16-48-53Z] 525/2000 elapsed=442s spent=$2.84
+[E2-taxon-2026-04-22T16-48-53Z] 550/2000 elapsed=462s spent=$2.97
+[E2-taxon-2026-04-22T16-48-53Z] 575/2000 elapsed=480s spent=$3.10
+[E2-taxon-2026-04-22T16-48-53Z] 600/2000 elapsed=499s spent=$3.24
+[E2-taxon-2026-04-22T16-48-53Z] 625/2000 elapsed=518s spent=$3.37
+[E2-taxon-2026-04-22T16-48-53Z] 650/2000 elapsed=542s spent=$3.52
+[E2-taxon-2026-04-22T16-48-53Z] 675/2000 elapsed=568s spent=$3.66
+[E2-taxon-2026-04-22T16-48-53Z] 700/2000 elapsed=586s spent=$3.79
+[E2-taxon-2026-04-22T16-48-53Z] 725/2000 elapsed=607s spent=$3.92
+[E2-taxon-2026-04-22T16-48-53Z] 750/2000 elapsed=627s spent=$4.06
+[E2-taxon-2026-04-22T16-48-53Z] 775/2000 elapsed=649s spent=$4.20
+[E2-taxon-2026-04-22T16-48-53Z] 800/2000 elapsed=673s spent=$4.36
+[E2-taxon-2026-04-22T16-48-53Z] 825/2000 elapsed=696s spent=$4.51
+[E2-taxon-2026-04-22T16-48-53Z] 850/2000 elapsed=724s spent=$4.66
+[E2-taxon-2026-04-22T16-48-53Z] 875/2000 elapsed=748s spent=$4.80
+[E2-taxon-2026-04-22T16-48-53Z] 900/2000 elapsed=769s spent=$4.92
+[E2-taxon-2026-04-22T16-48-53Z] 925/2000 elapsed=792s spent=$5.06
+[E2-taxon-2026-04-22T16-48-53Z] 950/2000 elapsed=813s spent=$5.21
+[E2-taxon-2026-04-22T16-48-53Z] 975/2000 elapsed=834s spent=$5.34
+[E2-taxon-2026-04-22T16-48-53Z] 1000/2000 elapsed=856s spent=$5.47
+[E2-taxon-2026-04-22T16-48-53Z] 1025/2000 elapsed=882s spent=$5.59
+[E2-taxon-2026-04-22T16-48-53Z] 1050/2000 elapsed=903s spent=$5.72
+[E2-taxon-2026-04-22T16-48-53Z] 1075/2000 elapsed=923s spent=$5.85
+[E2-taxon-2026-04-22T16-48-53Z] 1100/2000 elapsed=942s spent=$5.97
+[E2-taxon-2026-04-22T16-48-53Z] 1125/2000 elapsed=962s spent=$6.10
+[E2-taxon-2026-04-22T16-48-53Z] 1150/2000 elapsed=983s spent=$6.23
+[E2-taxon-2026-04-22T16-48-53Z] 1175/2000 elapsed=1006s spent=$6.38
+[E2-taxon-2026-04-22T16-48-53Z] 1200/2000 elapsed=1030s spent=$6.53
+[E2-taxon-2026-04-22T16-48-53Z] 1225/2000 elapsed=1054s spent=$6.69
+[E2-taxon-2026-04-22T16-48-53Z] 1250/2000 elapsed=1076s spent=$6.83
+[E2-taxon-2026-04-22T16-48-53Z] 1275/2000 elapsed=1099s spent=$6.97
+[E2-taxon-2026-04-22T16-48-53Z] 1300/2000 elapsed=1122s spent=$7.11
+[E2-taxon-2026-04-22T16-48-53Z] 1325/2000 elapsed=1147s spent=$7.26
+[E2-taxon-2026-04-22T16-48-53Z] 1350/2000 elapsed=1168s spent=$7.39
+[E2-taxon-2026-04-22T16-48-53Z] 1375/2000 elapsed=1187s spent=$7.53
+[E2-taxon-2026-04-22T16-48-53Z] 1400/2000 elapsed=1211s spent=$7.68
+[E2-taxon-2026-04-22T16-48-53Z] 1425/2000 elapsed=1236s spent=$7.83
+[E2-taxon-2026-04-22T16-48-53Z] 1450/2000 elapsed=1258s spent=$7.98
+[E2-taxon-2026-04-22T16-48-53Z] 1475/2000 elapsed=1279s spent=$8.12
+[E2-taxon-2026-04-22T16-48-53Z] 1500/2000 elapsed=1302s spent=$8.27
+[E2-taxon-2026-04-22T16-48-53Z] 1525/2000 elapsed=1328s spent=$8.41
+[E2-taxon-2026-04-22T16-48-53Z] 1550/2000 elapsed=1350s spent=$8.55
+[E2-taxon-2026-04-22T16-48-53Z] 1575/2000 elapsed=1376s spent=$8.69
+[E2-taxon-2026-04-22T16-48-53Z] 1600/2000 elapsed=1397s spent=$8.82
+[E2-taxon-2026-04-22T16-48-53Z] 1625/2000 elapsed=1418s spent=$8.95
+[E2-taxon-2026-04-22T16-48-53Z] 1650/2000 elapsed=1440s spent=$9.08
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1675/2000 elapsed=1520s spent=$9.19
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1700/2000 elapsed=1577s spent=$9.19
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1725/2000 elapsed=1582s spent=$9.19
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1750/2000 elapsed=2106s spent=$9.19
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1775/2000 elapsed=2112s spent=$9.19
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E2-taxon-2026-04-22T16-48-53Z] 1800/2000 elapsed=2134s spent=$9.29
+[E2-taxon-2026-04-22T16-48-53Z] 1825/2000 elapsed=2513s spent=$9.43
+[E2-taxon-2026-04-22T16-48-53Z] 1850/2000 elapsed=2539s spent=$9.58
+[E2-taxon-2026-04-22T16-48-53Z] 1875/2000 elapsed=2565s spent=$9.73
+[E2-taxon-2026-04-22T16-48-53Z] 1900/2000 elapsed=2588s spent=$9.86
+[E2-taxon-2026-04-22T16-48-53Z] 1925/2000 elapsed=2615s spent=$10.00
+[E2-taxon-2026-04-22T16-48-53Z] 1950/2000 elapsed=2643s spent=$10.13
+[E2-taxon-2026-04-22T16-48-53Z] 1975/2000 elapsed=2666s spent=$10.27
+[E2-taxon-2026-04-22T16-48-53Z] 2000/2000 elapsed=2692s spent=$10.38
+
+============================================================
+Run complete: E2-taxon-2026-04-22T16-48-53Z
+  F1: 46.55%
+  Precision: 50.00%
+  Recall: 43.55%
+  Cost: $10.38
+  Artifacts: /Users/YueningLyu/Documents/CMU/94-847 Responsible AI & AI Governance_Sadeh/Team_project/Multi-Agent-for-Cyber-Forensics/experiments/runs/E2-taxon-2026-04-22T16-48-53Z
+============================================================
+2026-04-22T17:33:48Z DONE:  E2-taxon
+2026-04-22T17:33:48Z START: E5-CoT
+[E5-CoT-2026-04-22T17-33-48Z] loaded 2000 records, 0 already done, 2000 remaining
+[E5-CoT-2026-04-22T17-33-48Z] 25/2000 elapsed=47s spent=$0.18
+[E5-CoT-2026-04-22T17-33-48Z] 50/2000 elapsed=96s spent=$0.40
+[E5-CoT-2026-04-22T17-33-48Z] 75/2000 elapsed=149s spent=$0.59
+[E5-CoT-2026-04-22T17-33-48Z] 100/2000 elapsed=195s spent=$0.79
+[E5-CoT-2026-04-22T17-33-48Z] 125/2000 elapsed=237s spent=$0.98
+[E5-CoT-2026-04-22T17-33-48Z] 150/2000 elapsed=288s spent=$1.19
+[E5-CoT-2026-04-22T17-33-48Z] 175/2000 elapsed=345s spent=$1.42
+[E5-CoT-2026-04-22T17-33-48Z] 200/2000 elapsed=402s spent=$1.63
+[E5-CoT-2026-04-22T17-33-48Z] 225/2000 elapsed=455s spent=$1.84
+[E5-CoT-2026-04-22T17-33-48Z] 250/2000 elapsed=506s spent=$2.04
+[E5-CoT-2026-04-22T17-33-48Z] 275/2000 elapsed=551s spent=$2.23
+[E5-CoT-2026-04-22T17-33-48Z] 300/2000 elapsed=604s spent=$2.43
+[E5-CoT-2026-04-22T17-33-48Z] 325/2000 elapsed=648s spent=$2.61
+[E5-CoT-2026-04-22T17-33-48Z] 350/2000 elapsed=692s spent=$2.80
+[E5-CoT-2026-04-22T17-33-48Z] 375/2000 elapsed=740s spent=$2.98
+[E5-CoT-2026-04-22T17-33-48Z] 400/2000 elapsed=792s spent=$3.20
+[E5-CoT-2026-04-22T17-33-48Z] 425/2000 elapsed=840s spent=$3.39
+[E5-CoT-2026-04-22T17-33-48Z] 450/2000 elapsed=884s spent=$3.57
+[E5-CoT-2026-04-22T17-33-48Z] 475/2000 elapsed=931s spent=$3.76
+[E5-CoT-2026-04-22T17-33-48Z] 500/2000 elapsed=980s spent=$3.97
+[E5-CoT-2026-04-22T17-33-48Z] 525/2000 elapsed=1027s spent=$4.16
+[E5-CoT-2026-04-22T17-33-48Z] 550/2000 elapsed=1076s spent=$4.35
+[E5-CoT-2026-04-22T17-33-48Z] 575/2000 elapsed=1129s spent=$4.55
+[E5-CoT-2026-04-22T17-33-48Z] 600/2000 elapsed=1174s spent=$4.76
+[E5-CoT-2026-04-22T17-33-48Z] 625/2000 elapsed=1214s spent=$4.95
+[E5-CoT-2026-04-22T17-33-48Z] 650/2000 elapsed=1264s spent=$5.15
+[E5-CoT-2026-04-22T17-33-48Z] 675/2000 elapsed=1306s spent=$5.34
+[E5-CoT-2026-04-22T17-33-48Z] 700/2000 elapsed=1353s spent=$5.54
+[E5-CoT-2026-04-22T17-33-48Z] 725/2000 elapsed=1404s spent=$5.73
+[E5-CoT-2026-04-22T17-33-48Z] 750/2000 elapsed=1450s spent=$5.93
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+  per-email error: APIConnectionError('Connection error.')
+[E5-CoT-2026-04-22T17-33-48Z] 775/2000 elapsed=3576s spent=$6.06
+[E5-CoT-2026-04-22T17-33-48Z] 800/2000 elapsed=7295s spent=$6.30
+[E5-CoT-2026-04-22T17-33-48Z] 825/2000 elapsed=7816s spent=$6.51
+[E5-CoT-2026-04-22T17-33-48Z] 850/2000 elapsed=7979s spent=$6.72
+[E5-CoT-2026-04-22T17-33-48Z] 875/2000 elapsed=8755s spent=$6.93
+[E5-CoT-2026-04-22T17-33-48Z] 900/2000 elapsed=9290s spent=$7.12
+[E5-CoT-2026-04-22T17-33-48Z] 925/2000 elapsed=9336s spent=$7.33
+[E5-CoT-2026-04-22T17-33-48Z] 950/2000 elapsed=9383s spent=$7.54
+[E5-CoT-2026-04-22T17-33-48Z] 975/2000 elapsed=9432s spent=$7.74
+[E5-CoT-2026-04-22T17-33-48Z] 1000/2000 elapsed=9482s spent=$7.93
+[E5-CoT-2026-04-22T17-33-48Z] 1025/2000 elapsed=9534s spent=$8.11
+[E5-CoT-2026-04-22T17-33-48Z] 1050/2000 elapsed=9586s spent=$8.31
+[E5-CoT-2026-04-22T17-33-48Z] 1075/2000 elapsed=9636s spent=$8.51
+[E5-CoT-2026-04-22T17-33-48Z] 1100/2000 elapsed=9683s spent=$8.70
+[E5-CoT-2026-04-22T17-33-48Z] 1125/2000 elapsed=9725s spent=$8.88
+[E5-CoT-2026-04-22T17-33-48Z] 1150/2000 elapsed=9768s spent=$9.06
+[E5-CoT-2026-04-22T17-33-48Z] 1175/2000 elapsed=9816s spent=$9.28
+[E5-CoT-2026-04-22T17-33-48Z] 1200/2000 elapsed=9867s spent=$9.49
+[E5-CoT-2026-04-22T17-33-48Z] 1225/2000 elapsed=9924s spent=$9.74
+[E5-CoT-2026-04-22T17-33-48Z] 1250/2000 elapsed=9977s spent=$9.95
+[E5-CoT-2026-04-22T17-33-48Z] 1275/2000 elapsed=10024s spent=$10.16
+[E5-CoT-2026-04-22T17-33-48Z] 1300/2000 elapsed=10074s spent=$10.37
+[E5-CoT-2026-04-22T17-33-48Z] 1325/2000 elapsed=10121s spent=$10.58
+[E5-CoT-2026-04-22T17-33-48Z] 1350/2000 elapsed=10174s spent=$10.79
+[E5-CoT-2026-04-22T17-33-48Z] 1375/2000 elapsed=10224s spent=$11.00
+[E5-CoT-2026-04-22T17-33-48Z] 1400/2000 elapsed=10272s spent=$11.21
+[E5-CoT-2026-04-22T17-33-48Z] 1425/2000 elapsed=10322s spent=$11.42
+[E5-CoT-2026-04-22T17-33-48Z] 1450/2000 elapsed=10373s spent=$11.62
+[E5-CoT-2026-04-22T17-33-48Z] 1475/2000 elapsed=10421s spent=$11.82
+[E5-CoT-2026-04-22T17-33-48Z] 1500/2000 elapsed=10469s spent=$12.03
+[E5-CoT-2026-04-22T17-33-48Z] 1525/2000 elapsed=10516s spent=$12.24
+[E5-CoT-2026-04-22T17-33-48Z] 1550/2000 elapsed=10562s spent=$12.44
+[E5-CoT-2026-04-22T17-33-48Z] 1575/2000 elapsed=10607s spent=$12.64
+[E5-CoT-2026-04-22T17-33-48Z] 1600/2000 elapsed=10651s spent=$12.82
+[E5-CoT-2026-04-22T17-33-48Z] 1625/2000 elapsed=10699s spent=$13.02
+[E5-CoT-2026-04-22T17-33-48Z] 1650/2000 elapsed=10750s spent=$13.23
+[E5-CoT-2026-04-22T17-33-48Z] 1675/2000 elapsed=10793s spent=$13.41
+[E5-CoT-2026-04-22T17-33-48Z] 1700/2000 elapsed=10837s spent=$13.60
+[E5-CoT-2026-04-22T17-33-48Z] 1725/2000 elapsed=10886s spent=$13.81
+[E5-CoT-2026-04-22T17-33-48Z] 1750/2000 elapsed=10932s spent=$14.02
+[E5-CoT-2026-04-22T17-33-48Z] 1775/2000 elapsed=10986s spent=$14.22
+[E5-CoT-2026-04-22T17-33-48Z] 1800/2000 elapsed=11034s spent=$14.43
+[E5-CoT-2026-04-22T17-33-48Z] 1825/2000 elapsed=11085s spent=$14.64
+[E5-CoT-2026-04-22T17-33-48Z] 1850/2000 elapsed=11132s spent=$14.85
+[E5-CoT-2026-04-22T17-33-48Z] 1875/2000 elapsed=11183s spent=$15.07
+[E5-CoT-2026-04-22T17-33-48Z] 1900/2000 elapsed=11226s spent=$15.26
+[E5-CoT-2026-04-22T17-33-48Z] 1925/2000 elapsed=11277s spent=$15.48
+[E5-CoT-2026-04-22T17-33-48Z] 1950/2000 elapsed=11325s spent=$15.66
+[E5-CoT-2026-04-22T17-33-48Z] 1975/2000 elapsed=11372s spent=$15.86
+[E5-CoT-2026-04-22T17-33-48Z] 2000/2000 elapsed=11415s spent=$16.04
+
+============================================================
+Run complete: E5-CoT-2026-04-22T17-33-48Z
+  F1: 22.99%
+  Precision: 50.00%
+  Recall: 14.93%
+  Cost: $16.04
+  Artifacts: /Users/YueningLyu/Documents/CMU/94-847 Responsible AI & AI Governance_Sadeh/Team_project/Multi-Agent-for-Cyber-Forensics/experiments/runs/E5-CoT-2026-04-22T17-33-48Z
+============================================================
+2026-04-22T20:44:07Z DONE:  E5-CoT
+2026-04-22T20:44:07Z Ablation chain complete. Running decide_scale.
+
+=== Leaderboard (modern-classifier conditions) ===
+condition                          N      F1   CI_lo   CI_hi  classifier       deid           taxonomy    
+E2-taxon-2026-04-22T16-48-53Z   1887  46.55%  34.19%  56.92%  llm_json         full_scrub     acfe_enron  
+E3-raw-llm-2026-04-22T16-04-26  2000  40.94%  28.83%  50.75%  llm_json         none           generic     
+E1-LLMcls-2026-04-22T15-43-51Z  2000  39.67%  28.12%  50.32%  llm_json         full_scrub     generic     
+E4-pseudo-2026-04-22T16-24-16Z  2000  39.06%  27.59%  49.23%  llm_json         pseudonym      generic     
+E5-CoT-2026-04-22T17-33-48Z     1991  22.99%  10.81%  35.16%  llm_json_cot     full_scrub     generic     
+decide_scale: wrote /Users/YueningLyu/Documents/CMU/94-847 Responsible AI & AI Governance_Sadeh/Team_project/Multi-Agent-for-Cyber-Forensics/experiments/configs/E6-best-scaled.yaml (winner = E2-taxon-2026-04-22T16-48-53Z, F1=46.55%, CI_lo=34.19%)
+2026-04-22T20:44:07Z START: E6-best-scaled (10K confirmatory)
+[E6-best-scaled-2026-04-22T20-44-07Z] loaded 2000 records, 0 already done, 2000 remaining
+[E6-best-scaled-2026-04-22T20-44-07Z] 25/2000 elapsed=19s spent=$0.12
+[E6-best-scaled-2026-04-22T20-44-07Z] 50/2000 elapsed=42s spent=$0.27
+[E6-best-scaled-2026-04-22T20-44-07Z] 75/2000 elapsed=61s spent=$0.39
+[E6-best-scaled-2026-04-22T20-44-07Z] 100/2000 elapsed=82s spent=$0.53
+[E6-best-scaled-2026-04-22T20-44-07Z] 125/2000 elapsed=100s spent=$0.66
+[E6-best-scaled-2026-04-22T20-44-07Z] 150/2000 elapsed=120s spent=$0.79
+[E6-best-scaled-2026-04-22T20-44-07Z] 175/2000 elapsed=143s spent=$0.94
+[E6-best-scaled-2026-04-22T20-44-07Z] 200/2000 elapsed=164s spent=$1.09
+[E6-best-scaled-2026-04-22T20-44-07Z] 225/2000 elapsed=186s spent=$1.22
+[E6-best-scaled-2026-04-22T20-44-07Z] 250/2000 elapsed=210s spent=$1.36
+[E6-best-scaled-2026-04-22T20-44-07Z] 275/2000 elapsed=229s spent=$1.48
+[E6-best-scaled-2026-04-22T20-44-07Z] 300/2000 elapsed=254s spent=$1.62
+[E6-best-scaled-2026-04-22T20-44-07Z] 325/2000 elapsed=272s spent=$1.74
+[E6-best-scaled-2026-04-22T20-44-07Z] 350/2000 elapsed=295s spent=$1.88
+[E6-best-scaled-2026-04-22T20-44-07Z] 375/2000 elapsed=313s spent=$2.01
+[E6-best-scaled-2026-04-22T20-44-07Z] 400/2000 elapsed=336s spent=$2.16
+[E6-best-scaled-2026-04-22T20-44-07Z] 425/2000 elapsed=354s spent=$2.30
+[E6-best-scaled-2026-04-22T20-44-07Z] 450/2000 elapsed=372s spent=$2.42
+[E6-best-scaled-2026-04-22T20-44-07Z] 475/2000 elapsed=392s spent=$2.56
+[E6-best-scaled-2026-04-22T20-44-07Z] 500/2000 elapsed=413s spent=$2.70
+[E6-best-scaled-2026-04-22T20-44-07Z] 525/2000 elapsed=432s spent=$2.84
+[E6-best-scaled-2026-04-22T20-44-07Z] 550/2000 elapsed=451s spent=$2.97
+[E6-best-scaled-2026-04-22T20-44-07Z] 575/2000 elapsed=468s spent=$3.10
+[E6-best-scaled-2026-04-22T20-44-07Z] 600/2000 elapsed=488s spent=$3.25
+[E6-best-scaled-2026-04-22T20-44-07Z] 625/2000 elapsed=505s spent=$3.38
+[E6-best-scaled-2026-04-22T20-44-07Z] 650/2000 elapsed=527s spent=$3.52
+[E6-best-scaled-2026-04-22T20-44-07Z] 675/2000 elapsed=547s spent=$3.65
+[E6-best-scaled-2026-04-22T20-44-07Z] 700/2000 elapsed=568s spent=$3.79
+[E6-best-scaled-2026-04-22T20-44-07Z] 725/2000 elapsed=589s spent=$3.93
+[E6-best-scaled-2026-04-22T20-44-07Z] 750/2000 elapsed=609s spent=$4.07
+[E6-best-scaled-2026-04-22T20-44-07Z] 775/2000 elapsed=629s spent=$4.21
+[E6-best-scaled-2026-04-22T20-44-07Z] 800/2000 elapsed=648s spent=$4.36
+[E6-best-scaled-2026-04-22T20-44-07Z] 825/2000 elapsed=674s spent=$4.51
+[E6-best-scaled-2026-04-22T20-44-07Z] 850/2000 elapsed=695s spent=$4.65
+[E6-best-scaled-2026-04-22T20-44-07Z] 875/2000 elapsed=717s spent=$4.80
+[E6-best-scaled-2026-04-22T20-44-07Z] 900/2000 elapsed=739s spent=$4.92
+[E6-best-scaled-2026-04-22T20-44-07Z] 925/2000 elapsed=762s spent=$5.07
+[E6-best-scaled-2026-04-22T20-44-07Z] 950/2000 elapsed=783s spent=$5.21
+[E6-best-scaled-2026-04-22T20-44-07Z] 975/2000 elapsed=805s spent=$5.34
+[E6-best-scaled-2026-04-22T20-44-07Z] 1000/2000 elapsed=829s spent=$5.47
+[E6-best-scaled-2026-04-22T20-44-07Z] 1025/2000 elapsed=857s spent=$5.60
+[E6-best-scaled-2026-04-22T20-44-07Z] 1050/2000 elapsed=875s spent=$5.72
+[E6-best-scaled-2026-04-22T20-44-07Z] 1075/2000 elapsed=896s spent=$5.86
+[E6-best-scaled-2026-04-22T20-44-07Z] 1100/2000 elapsed=914s spent=$5.97
+[E6-best-scaled-2026-04-22T20-44-07Z] 1125/2000 elapsed=934s spent=$6.10
+[E6-best-scaled-2026-04-22T20-44-07Z] 1150/2000 elapsed=954s spent=$6.23
+[E6-best-scaled-2026-04-22T20-44-07Z] 1175/2000 elapsed=980s spent=$6.38
+[E6-best-scaled-2026-04-22T20-44-07Z] 1200/2000 elapsed=1002s spent=$6.52
+[E6-best-scaled-2026-04-22T20-44-07Z] 1225/2000 elapsed=1026s spent=$6.68
+[E6-best-scaled-2026-04-22T20-44-07Z] 1250/2000 elapsed=1049s spent=$6.82
+[E6-best-scaled-2026-04-22T20-44-07Z] 1275/2000 elapsed=1074s spent=$6.96
+[E6-best-scaled-2026-04-22T20-44-07Z] 1300/2000 elapsed=1097s spent=$7.10
+[E6-best-scaled-2026-04-22T20-44-07Z] 1325/2000 elapsed=1119s spent=$7.24
+[E6-best-scaled-2026-04-22T20-44-07Z] 1350/2000 elapsed=1138s spent=$7.38
+[E6-best-scaled-2026-04-22T20-44-07Z] 1375/2000 elapsed=1159s spent=$7.51
+[E6-best-scaled-2026-04-22T20-44-07Z] 1400/2000 elapsed=1187s spent=$7.66
+[E6-best-scaled-2026-04-22T20-44-07Z] 1425/2000 elapsed=1212s spent=$7.82
+[E6-best-scaled-2026-04-22T20-44-07Z] 1450/2000 elapsed=1233s spent=$7.95
+[E6-best-scaled-2026-04-22T20-44-07Z] 1475/2000 elapsed=1254s spent=$8.10
+[E6-best-scaled-2026-04-22T20-44-07Z] 1500/2000 elapsed=1279s spent=$8.25
+[E6-best-scaled-2026-04-22T20-44-07Z] 1525/2000 elapsed=1300s spent=$8.38
+[E6-best-scaled-2026-04-22T20-44-07Z] 1550/2000 elapsed=1324s spent=$8.52
+[E6-best-scaled-2026-04-22T20-44-07Z] 1575/2000 elapsed=1346s spent=$8.66
+[E6-best-scaled-2026-04-22T20-44-07Z] 1600/2000 elapsed=1366s spent=$8.79
+[E6-best-scaled-2026-04-22T20-44-07Z] 1625/2000 elapsed=1390s spent=$8.93
+[E6-best-scaled-2026-04-22T20-44-07Z] 1650/2000 elapsed=1408s spent=$9.06
+[E6-best-scaled-2026-04-22T20-44-07Z] 1675/2000 elapsed=1427s spent=$9.19
+[E6-best-scaled-2026-04-22T20-44-07Z] 1700/2000 elapsed=1448s spent=$9.32
+[E6-best-scaled-2026-04-22T20-44-07Z] 1725/2000 elapsed=1471s spent=$9.46
+[E6-best-scaled-2026-04-22T20-44-07Z] 1750/2000 elapsed=1494s spent=$9.61
+[E6-best-scaled-2026-04-22T20-44-07Z] 1775/2000 elapsed=1517s spent=$9.75
+[E6-best-scaled-2026-04-22T20-44-07Z] 1800/2000 elapsed=1538s spent=$9.90
+[E6-best-scaled-2026-04-22T20-44-07Z] 1825/2000 elapsed=1559s spent=$10.04
+[E6-best-scaled-2026-04-22T20-44-07Z] 1850/2000 elapsed=1580s spent=$10.19
+[E6-best-scaled-2026-04-22T20-44-07Z] 1875/2000 elapsed=1602s spent=$10.33
+[E6-best-scaled-2026-04-22T20-44-07Z] 1900/2000 elapsed=1621s spent=$10.46
+[E6-best-scaled-2026-04-22T20-44-07Z] 1925/2000 elapsed=1643s spent=$10.61
+[E6-best-scaled-2026-04-22T20-44-07Z] 1950/2000 elapsed=1663s spent=$10.74
+[E6-best-scaled-2026-04-22T20-44-07Z] 1975/2000 elapsed=1688s spent=$10.88
+[E6-best-scaled-2026-04-22T20-44-07Z] 2000/2000 elapsed=1707s spent=$11.00
+
+============================================================
+Run complete: E6-best-scaled-2026-04-22T20-44-07Z
+  F1: 41.94%
+  Precision: 45.61%
+  Recall: 38.81%
+  Cost: $11.00
+  Artifacts: /Users/YueningLyu/Documents/CMU/94-847 Responsible AI & AI Governance_Sadeh/Team_project/Multi-Agent-for-Cyber-Forensics/experiments/runs/E6-best-scaled-2026-04-22T20-44-07Z
+============================================================
+2026-04-22T21:12:37Z DONE:  E6-best-scaled
+2026-04-22T21:12:37Z All done

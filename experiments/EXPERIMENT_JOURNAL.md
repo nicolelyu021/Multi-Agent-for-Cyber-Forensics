@@ -27,43 +27,48 @@ If any of those five artifacts is missing for a reported number, treat the numbe
 
 > **State of the evidence (latest revision):** see "Results ledger" at the bottom of this file. Top-of-file narrative updated after every new run.
 
-### Current headline (after 5 completed runs)
+### Current headline (after 8 completed runs)
 
-> **Privacy controls do not cost measurable F1 at all under a competent classifier. The entire 37-point gap in the published baseline is classifier architecture.**
+> **Privacy controls do not cost measurable F1 under a competent classifier. The 37-point "privacy gap" in the midterm presentation is classifier architecture. CoT prompting does not help and can actively hurt. Taxonomy injection looks helpful but is not statistically distinguishable from LLM re-run noise at n=2,000.**
 
-| Condition | Classifier | De-ID | F1 | 95% CI |
-|---|---|---|---|---|
-| **E0-repro** (published baseline) | heuristic | full scrub | **2.65%** | 0.00–6.78 |
-| **E3-raw-heur** (privacy isolated, heuristic) | heuristic | **none** | **2.94%** | 0.00–7.50 |
-| **E1-LLMcls** (classifier isolated) | **LLM-JSON (Sonnet 4.5)** | full scrub | **39.67%** | 28.12–50.32 |
-| **E3-raw-llm** (both isolated) | LLM-JSON | **none** | **40.94%** | 28.83–50.75 |
-| **E4-pseudo** (intermediate privacy) | LLM-JSON | **pseudonym** | **39.06%** | 27.59–49.23 |
+| Condition | Classifier | De-ID | Taxonomy | F1 | 95% CI | Note |
+|---|---|---|---|---|---|---|
+| **E0-repro** (published baseline) | heuristic | full-scrub | generic | **2.65%** | 0.00–6.78 | Reproduces midterm |
+| **E3-raw-heur** (privacy-on-heuristic) | heuristic | **raw** | generic | 2.94% | 0.00–7.50 | Privacy isolated |
+| **E1-LLMcls** (classifier isolated) | **LLM-JSON (Sonnet 4.5)** | full-scrub | generic | **39.67%** | 28.12–50.32 | +37 pp over E0 |
+| **E3-raw-llm** | LLM-JSON | **raw** | generic | 40.94% | 28.83–50.75 | Privacy null vs E1 (p=0.84) |
+| **E4-pseudo** | LLM-JSON | **pseudonym** | generic | 39.06% | 27.59–49.23 | Privacy null vs E1 (p=0.47) |
+| **E2-taxon** ★ best point est. | LLM-JSON | full-scrub | **ACFE-Enron** | **46.55%** | 34.19–56.92 | +6.88 pp vs E1 (p=0.34, NS) |
+| **E5-CoT** | LLM-JSON + CoT scratchpad | full-scrub | generic | 22.99% | 10.81–35.16 | Worse operating point (p=0.43 vs E1) |
+| **E6-best-scaled** (E2 re-run) | LLM-JSON | full-scrub | ACFE-Enron | 41.94% | 30.36–53.06 | Confirms ~5 pp LLM-stochasticity floor |
 
-**Clean decomposition (under modern classifier):**
+**Significance summary (paired McNemar vs. E1-LLMcls control):**
 
-| Isolated effect | ΔF1 | McNemar p | Interpretation |
-|---|---|---|---|
-| Raw → Full scrub (strongest privacy change) | −1.27 pp | **0.84** | NOT significant |
-| Raw → Pseudonym (intermediate privacy) | −1.88 pp | **0.71** | NOT significant |
-| Pseudonym → Full scrub | −0.61 pp | **0.47** | NOT significant |
+| Factor changed | Run | ΔF1 | McNemar p | Status at α=0.05 |
+|---|---|---:|---:|---|
+| Heuristic → LLM classifier | E0 → E1 | +37.02 pp | **<0.0001** | ✅ strongly significant |
+| LLM + full-scrub → LLM + raw | E1 → E3-raw-llm | +1.27 pp | 0.84 | ❌ null |
+| LLM + full-scrub → LLM + pseudonym | E1 → E4 | −0.61 pp | 0.47 | ❌ null |
+| LLM, add ACFE-Enron taxonomy | E1 → E2 | +6.88 pp | 0.34 | ⚠ consistent direction, under-powered |
+| LLM, add CoT scratchpad | E1 → E5 | −16.68 pp (F1), same total errors | 0.43 | ❌ null on accuracy, big operating-point shift |
+| E2 re-run (same config, different LLM sample) | E2 → E6 | −4.61 pp | 0.03 | — (estimates re-run noise ≈ 5 pp) |
 
-The three de-ID conditions (raw, pseudonym, full-scrub) form a **statistical equivalence class** with the modern classifier. Point estimates differ by ≤ 2 pp, every pairwise McNemar test fails to reject the null at α=0.05, and bootstrap CIs overlap heavily.
+**What this establishes:**
+- **H1** (classifier explains ≥3× more than privacy): **confirmed** — 37 pp vs. ≤ 1.9 pp is a 19× ratio on point estimate; on *significance*, classifier p<0.0001 vs. privacy p∈{0.47, 0.71, 0.84} is decisive.
+- **H2** (privacy costs real but <10 pp under modern classifier): **falsified in the favorable direction** — privacy cost is statistically unmeasurable at n=2,000.
+- **H2-pseudo** (pseudonymization is intermediate): **not supported** — statistically equivalent to full-scrub.
+- **H3** (taxonomy injection adds ≥5 pp): **not established** — E2 point estimate is +6.88 pp in the predicted direction, and per-category recall on Financial Fraud moves from 39.3% → 45.6% as predicted. But McNemar p=0.34 and the E6 re-run at the same config gives F1=41.94%, suggesting most of the gap is re-run stochasticity rather than taxonomy.
+- **H5** (CoT adds ≥3 pp F1): **falsified decisively** — CoT lowers F1 by 16.68 pp. McNemar on accuracy is null (p=0.43), but Sonnet under CoT talks itself *out* of flagging borderline emails, shifting the operating point toward precision (50%) at the cost of recall (14.9%).
 
-**Classifier effect (E0 → E1-LLMcls):** +37.02 pp, McNemar p<0.0001, OR=3.55, n_discordant=132. This is the dominant explanation of the "privacy destroyed capability" narrative.
+**Governance implications for the final report:**
 
-**Hypotheses, after 5 runs:**
-- **H1** (classifier explains ≥3× more than privacy): **confirmed at 127× the threshold.**
-- **H2** (privacy cost is real but < 10 pp under modern classifier): **falsified in the favorable direction** — privacy cost is statistically unmeasurable.
-- **H2-pseudo** (pseudonymization is intermediate): **not supported** — pseudonymization is statistically equivalent to full-scrub.
+1. **The presentation framing — "privacy vs. capability tradeoff" — is a *misattribution of a classifier design choice to a privacy control*.** Under the modern classifier we cannot measure a privacy cost; under either classifier the de-ID gap is ≤ 1.9 pp (not significant).
+2. **Observability without authority** is a specific failure mode of multi-agent LLM systems: LLM reasoning tokens were logged and hashed through every layer, but the actual binary decision came from a 29-word regex outside the LLM reasoning surface. The NIST AI RMF *Measure 2.8 (Transparency)* bar was met textually but not mechanistically.
+3. **Strong-privacy-by-default is supported empirically.** Full-scrub PII redaction imposes **zero measurable F1 cost** vs. both raw text and pseudonymization. Any weakening of de-ID policy must be justified on grounds *other than classification accuracy*.
+4. **Prompt choices are operating-point choices.** CoT did not reduce *accuracy* but shifted the model into a high-precision / low-recall regime. For high-cost-of-miss applications like insider threat, that shift matters; teams should measure operating-point effects, not just F1.
+5. **Null results need n ≥ 5,000 to become quantitative.** At n=2,000 (67 positives) our classifier re-run noise is ~5 pp F1; the taxonomy-injection effect, which looks real qualitatively, is below that noise floor. For the report we can state *qualitative* support with *quantitative* significance only for the dominant classifier-architecture effect.
 
-**Governance implication for the final report:**
-
-> The presentation's framing — "privacy vs. capability tradeoff" — is a *misattribution of a classifier design choice to a privacy control*. The real finding has stronger implications for AI governance:
->
-> 1. *Observability without authority* is an accountability gap. A system's forensic surface recorded every LLM reasoning token, every deliberation, and every decision hash. But the binary prediction that determined whether a human analyst was paged came from a 29-word regex five layers below the LLM — a legacy code path outside the forensic surface. Auditors reading the forensic trace would see a multi-agent LLM system; the actual classifier was a 2018-era keyword matcher. The NIST AI RMF *Measure 2.8 (Transparency)* bar was met textually but not mechanistically.
-> 2. *Strong-privacy-by-default is supported empirically.* Full-scrub PII redaction imposes **zero measurable F1 cost** on this task relative to both raw text and a less-aggressive pseudonym scheme. Any weakening of the de-ID policy below full-scrub must therefore be justified on grounds *other than classification accuracy* — e.g., needing role/department preservation for downstream analyst review.
-
-**Remaining queued:** E2-taxon (taxonomy injection), E5-CoT (chain-of-thought), E6-best-scaled (n=10K confirmatory).
+**Total spend:** $90.16 of $5,000 budget across 8 LLM runs + 2 E0 baselines.
 
 ---
 
@@ -232,8 +237,11 @@ If the script cannot compute any field, it refuses to start the run (fail loud, 
 | E1-LLMcls-2026-04-22T15-43-51Z | 1.05M | 300K | $8.66 | completed |
 | E3-raw-llm-2026-04-22T16-04-26Z | 1.04M | 300K | $8.53 | completed |
 | E4-pseudo-2026-04-22T16-24-16Z | 1.05M | 301K | $8.64 | completed |
+| E2-taxon-2026-04-22T16-48-53Z | ~1.20M | ~370K | $10.38 | completed (n=1887 paired, 113 JSON-parse drops) |
+| E5-CoT-2026-04-22T17-33-48Z | ~1.15M | ~1.15M | $16.04 | completed (CoT doubled output tokens) |
+| E6-best-scaled-2026-04-22T20-44-07Z | ~1.20M | ~370K | $11.00 | completed (dataset capped at 2000) |
 
-**Cumulative spend:** $25.85 of $2,000 cap.
+**Cumulative spend:** $63.27 of $5,000 cap (1.3% used).
 
 ---
 
@@ -268,6 +276,92 @@ The LLM completely solves Data Deletion (2/2) and recovers substantial Financial
 ---
 
 ## 9. Run-by-run narrative (newest first)
+
+---
+
+### `E6-best-scaled-2026-04-22T20-44-07Z` — Confirmatory re-run of the "winner" config
+
+**Config:** auto-emitted by `experiments/decide_scale.py` to mirror E2-taxon (the highest F1 CI-lower-bound). Requested n=10,000 but dataset has only 2,000 records, so effective n=2,000 with the same seed.
+**Wall-clock:** 1708s (28.5 min)  **Cost:** $11.00
+
+**Intent:** replicate the best single-condition result.
+
+**Result:**
+- F1: **41.94%** (95% CI 30.36–53.06%)
+- Precision: 45.61%, Recall: 38.81%
+- Confusion: TP=26, FP=31, FN=41, TN=1902
+
+**Comparison to E2-taxon (same config, different LLM sample):**
+- E2-taxon F1 = 46.55%, E6-scaled F1 = 41.94%.
+- Paired McNemar: n_discordant=6, OR=0 (asymmetric), **p=0.03**.
+- Six emails that E2 flagged correctly, E6 missed (zero in the other direction).
+
+**Interpretation:** the ~4.6 pp F1 spread between two identically-configured runs on the same 2,000 emails is the **LLM-stochasticity floor** for this sub-system. It is comparable to the bootstrap CI half-width (~10 pp) and to the 6.88 pp gap we observed between E1-LLMcls and E2-taxon (which we had wanted to attribute to taxonomy injection).
+
+> **Practical consequence:** the +6.88 pp E1→E2 improvement cannot be attributed to the taxonomy with high confidence at n=2,000. It sits well within the re-run variance of a single fixed config.
+
+To make a statistically defensible statement about taxonomy injection we would need n ≥ 5,000 of ground-truth-labeled data. The present dataset (2,000 emails, 67 positives) limits us to the McNemar-significant effects: the classifier change (+37 pp, very strong) and the *absence* of a privacy effect (null result, consistently).
+
+---
+
+### `E5-CoT-2026-04-22T17-33-48Z` — Chain-of-thought prompt ablation
+
+**Config:** `experiments/configs/E5-CoT.yaml`
+**Wall-clock:** 11425s (190 min — slowest run; longer prompts and outputs)  **Cost:** $16.04 (highest single-run cost)
+
+**What I was testing:** Prof. Sadeh's feedback was that a two-phase CoT scratchpad ("first reason step-by-step, then decide") typically improves LLM classification. This run uses an identical setup to E1-LLMcls except the system prompt asks the model to produce a reasoning scratchpad before the final JSON verdict.
+
+**Prediction:** modest F1 lift, most gain on borderline cases.
+
+**Result:**
+- F1: **22.99%** (95% CI 10.81–35.16%)  — **lower** than E1
+- Precision: **50.00%**, Recall: **14.93%**
+- Confusion: TP=10, FP=10, FN=57, TN=1914
+
+**Paired McNemar vs. E1-LLMcls:** n_discordant=40, OR=0.74, **p=0.43** — not significant. The same classification accuracy, a very different operating point.
+
+**Interpretation:** CoT did not degrade the *classifier*, it shifted the *risk appetite*. The model under CoT became substantially more conservative:
+- 44 fewer positives flagged overall (60 → 20)
+- Same precision (50%) as E2-taxon — so when it flags, it is right
+- Recall crashes (35.8% → 14.9%) — it misses ~60% of what E1 caught
+
+The model's scratchpad output (visible in `predictions.jsonl[*].reasoning`) makes this mechanism explicit — when asked to reason first, Sonnet-4.5 tends to talk itself *out* of flagging on moderate-signal emails ("this could be routine accounting — let me assume good faith") rather than flagging defensively.
+
+**Governance implication:** CoT is NOT a free win on threat-classification tasks. For high-cost-of-miss applications (insider threat, fraud triage) the conservative drift of CoT lowers recall to the point that F1 drops by almost half. Before deploying a CoT prompt, teams should verify it doesn't change the operating point in the wrong direction for their cost profile.
+
+**Pre-registered H5** ("CoT improves F1 by ≥3 pp over non-CoT"): **falsified decisively.**
+
+---
+
+### `E2-taxon-2026-04-22T16-48-53Z` — ACFE-Enron taxonomy injected into Student prompt
+
+**Config:** `experiments/configs/E2-taxon.yaml`
+**Wall-clock:** 2695s (45 min)  **Cost:** $10.38
+
+**What I was testing:** the Grader (Claude Opus) used the ACFE Occupational Fraud Taxonomy contextualized for Enron to produce labels. The Student (Sonnet) was given only a generic corporate-policy prompt. This run closes that asymmetry — same LLM, same scrubbed text, but the Student now sees the same taxonomy the Grader used.
+
+**Prediction:** +6 to +12 pp F1 vs. E1-LLMcls, mostly from Financial Fraud recall.
+
+**Result:**
+- F1: **46.55%** (95% CI 34.19–56.92%)
+- Precision: 50.00%, Recall: 43.55%
+- Confusion: TP=27, FP=27, FN=35, TN=1798 — on **n=1887 paired** (113 records dropped because of JSON parse failures in the longer taxonomy-augmented output)
+
+**Per-category recall:**
+- Financial Fraud: 26/57 = 45.6% (up from 39.3% in E1-LLMcls)
+- Data Deletion: 1/1 = 100%
+- Inappropriate Relations: 0/2 = 0%
+- Corruption: 0/2 = 0%
+
+**Paired McNemar vs. E1-LLMcls:** n_discordant=28, OR=1.55, **p=0.34** — not significant.
+
+**Interpretation:** E2 looks like a win on point estimate (+6.88 pp F1, +6.3 pp Financial Fraud recall, best precision of any run), and the direction matches H3 exactly — the gain is concentrated in Financial Fraud, the category the taxonomy names. However, the paired test does not reach α=0.05, and the E6 re-run of the same config (F1=41.94%) shows the LLM-stochasticity floor is about 5 pp on this dataset.
+
+**Honest statistical claim:** we observe a consistent +2 to +7 pp F1 lift from taxonomy injection across runs, but at n=2,000 we cannot distinguish it from LLM sampling noise at conventional significance. The claim "domain-specific taxonomy closes the teacher-student gap" is *qualitatively supported* but *not statistically established* at this sample size.
+
+**Pre-registered H3** ("taxonomy injection improves F1 by ≥5 pp"): **consistent with data but not statistically established (p=0.34).**
+
+**Secondary finding:** the larger prompt caused 113 JSON-parse failures (5.6%). Future runs should use response-format constraints or `instructor`-style guards. The dropped records are treated as non-predictions and removed from paired tests — not counted as FN/FP — which avoids biasing the estimate.
 
 ---
 

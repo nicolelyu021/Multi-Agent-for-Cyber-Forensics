@@ -1,0 +1,12 @@
+condition_id: E6-best-scaled
+notes: 'Confirmatory scaled run at n=10000. Based on ablation chain winner (best F1
+  CI lower bound): E2-taxon-2026-04-22T16-48-53Z. Config mirrors winner except for
+  n_emails and budget.'
+classifier_variant: llm_json
+deid_variant: full_scrub
+taxonomy_variant: acfe_enron
+student_model: claude-sonnet-4-5
+n_emails: 10000
+max_spend_usd: 200.0
+concurrency: 8
+escalation_threshold: 0.7

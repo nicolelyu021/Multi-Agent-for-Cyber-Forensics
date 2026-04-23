@@ -1,0 +1,68 @@
+{
+  "n_paired": 1991,
+  "n_positives_true": 67,
+  "n_positives_pred": 20,
+  "confusion_matrix": {
+    "tp": 10,
+    "fp": 10,
+    "tn": 1914,
+    "fn": 57,
+    "precision": 0.5,
+    "recall": 0.14925373134328357,
+    "f1": 0.22988505747126436,
+    "accuracy": 0.9663485685585133
+  },
+  "bootstrap": {
+    "f1": {
+      "point": 0.22988505747126436,
+      "ci_low": 0.1081081081081081,
+      "ci_high": 0.3516483516483516,
+      "alpha": 0.05,
+      "n_resamples": 1000
+    },
+    "precision": {
+      "point": 0.5,
+      "ci_low": 0.2727272727272727,
+      "ci_high": 0.7222222222222222,
+      "alpha": 0.05,
+      "n_resamples": 1000
+    },
+    "recall": {
+      "point": 0.14925373134328357,
+      "ci_low": 0.06756756756756757,
+      "ci_high": 0.24050632911392406,
+      "alpha": 0.05,
+      "n_resamples": 1000
+    },
+    "accuracy": {
+      "point": 0.9663485685585133,
+      "ci_low": 0.958312405826218,
+      "ci_high": 0.9738824711200402,
+      "alpha": 0.05,
+      "n_resamples": 1000
+    }
+  },
+  "cohen_kappa": 0.21778265127215776,
+  "per_category_recall": {
+    "Inappropriate Relations": {
+      "n_positives": 2,
+      "tp": 0,
+      "recall": 0.0
+    },
+    "Financial Fraud": {
+      "n_positives": 61,
+      "tp": 10,
+      "recall": 0.16393442622950818
+    },
+    "Data Deletion": {
+      "n_positives": 2,
+      "tp": 0,
+      "recall": 0.0
+    },
+    "Corruption": {
+      "n_positives": 2,
+      "tp": 0,
+      "recall": 0.0
+    }
+  }
+}
